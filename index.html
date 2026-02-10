@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <link rel="stylesheet" href="/src/styles.css" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Obel Music</title>
+  <script type="module" src="/src/main.ts" defer></script>
+</head>
+
+<body>
+  <div class="app-container">
+    <!-- SIDEBAR: Navigation & Now Playing -->
+    <aside class="sidebar tui-panel">
+      <div class="logo tui-border-bottom">// OBEL</div>
+
+      <!-- NAV -->
+      <nav class="tui-section">
+        <div class="tui-header">[ NAVIGATION ]</div>
+        <button id="tracks-btn" class="tui-btn active">TRACKS</button>
+        <button id="albums-btn" class="tui-btn">ALBUMS</button>
+        <button id="settings-btn" class="tui-btn">SETTINGS</button>
+      </nav>
+
+      <!-- NOW PLAYING (Moved to Sidebar) -->
+      <div class="now-playing-container tui-section">
+        <div class="tui-header">[ NOW_PLAYING ]</div>
+        <div class="cover-art-large tui-box">
+          <img id="np-cover" src="" class="hidden" alt="Cover" />
+          <div id="np-placeholder" class="ascii-art">
+            ♫
+          </div>
+        </div>
+        <div class="track-info">
+          <div id="np-title" class="scrolling-text">WAITING...</div>
+          <div id="np-artist" class="sub-text"></div>
+        </div>
+
+        <!-- CONTROLS -->
+        <div class="controls-row">
+          <button id="prev-btn" class="tui-control">[ &lt;&lt; ]</button>
+          <button id="play-btn" class="tui-control">[ PLAY ]</button>
+          <button id="next-btn" class="tui-control">[ &gt;&gt; ]</button>
+        </div>
+        <div class="volume-row">
+          <span>VOL:</span>
+          <input type="range" id="vol-slider" min="0" max="100" value="100" class="tui-slider" />
+        </div>
+      </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="content tui-panel">
+      <!-- Top Status Bar -->
+      <div class="status-bar tui-border-bottom">
+        <span id="current-view-label">VIEW: TRACKS</span>
+        <span id="library-stats">ITEMS: 0</span>
+      </div>
+
+      <!-- VIEW: TRACKS -->
+      <div id="track-list" class="view-section track-list scrollable" style="width: 100%;">
+        <div class="empty-state">No tracks found. Scan your library.</div>
+      </div>
+
+      <!-- VIEW: ALBUMS (Hidden by default) -->
+      <div id="album-grid" class="view-section album-grid scrollable hidden">
+        <!-- Grid injected here -->
+      </div>
+
+      <!-- VIEW: ALBUM DETAILS (Hidden by default) -->
+      <div id="album-details-view" class="view-section hidden">
+        <!-- Details injected here -->
+      </div>
+    </main>
+  </div>
+
+  <!-- MODALS -->
+  <div id="settings-modal" class="modal-overlay hidden">
+    <div class="modal tui-window">
+      <div class="modal-header tui-border-bottom">
+        <h3>// SYSTEM_CONFIG</h3>
+        <button id="close-settings" class="tui-btn-small">[X]</button>
+      </div>
+      <div class="modal-body">
+        <div class="tui-group">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+            <label>LIBRARY PATHS:</label>
+            <button id="wipe-db-btn" class="tui-btn-small"
+              style="color: red; text-decoration: underline; font-size: 0.8rem;">[ WIPE LIBRARY (RESET DB) ]</button>
+          </div>
+          <div id="path-list" class="path-list tui-input-area"></div>
+        </div>
+        <div class="tui-row">
+          <input type="text" id="new-path-input" class="tui-input" placeholder="C:\Music..." />
+          <button id="add-path-btn" class="tui-btn">[ ADD ]</button>
+        </div>
+        <div class="tui-actions">
+          <button id="scan-now-btn" class="tui-btn full-width" style="margin-bottom: 10px;">[ EXECUTE: RESCAN_LIBRARY
+            ]</button>
+
+          <div
+            style="display:flex; justify-content:space-between; align-items:center; border-top: 1px dotted #333; padding-top: 10px;">
+            <span class="tui-text">DISCORD RICH PRESENCE</span>
+            <input type="checkbox" id="discord-toggle" checked />
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- EDIT METADATA MODAL -->
+  <div id="edit-modal" class="modal-overlay hidden">
+    <div class="modal tui-window">
+      <div class="modal-header tui-border-bottom">
+        <h3>// EDIT_METADATA</h3>
+        <button id="close-edit" class="tui-btn-small">[X]</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="edit-original-album" />
+
+        <div class="tui-field">
+          <label>ALBUM_TITLE:</label>
+          <input type="text" id="edit-album-title" class="tui-input" />
+        </div>
+
+        <div class="tui-field">
+          <label>ARTIST_NAME:</label>
+          <input type="text" id="edit-album-artist" class="tui-input" />
+        </div>
+
+        <div class="tui-actions">
+          <button id="save-edit-btn" class="tui-btn success">[ SAVE_CHANGES ]</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+
+</html>
