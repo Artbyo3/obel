@@ -15,6 +15,7 @@ pub struct DbState {
 pub struct AppSettings {
     pub discord_enabled: Mutex<bool>,
     pub discord_rpc: Mutex<Option<core::discord::DiscordRPC>>,
+    pub lyrics_enabled: Mutex<bool>,
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -52,6 +53,7 @@ pub fn run() {
             app.manage(AppSettings {
                 discord_enabled: Mutex::new(true),
                 discord_rpc: Mutex::new(discord_rpc),
+                lyrics_enabled: Mutex::new(true),
             });
 
             Ok(())
@@ -82,7 +84,10 @@ pub fn run() {
             commands::play_track,
             commands::pause_track,
             commands::resume_track,
+            commands::seek_track,
             commands::set_volume,
+            commands::get_lyrics,
+            commands::set_lyrics_enabled,
             commands::set_discord_enabled,
             commands::update_album_metadata,
             commands::add_library_path,

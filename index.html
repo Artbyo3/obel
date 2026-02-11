@@ -25,9 +25,16 @@
 
       <!-- NOW PLAYING (Moved to Sidebar) -->
       <div class="now-playing-container tui-section">
-        <div class="tui-header">[ NOW_PLAYING ]</div>
+        <div class="tui-header" style="display: flex; justify-content: space-between; align-items: center;">
+          <span>[ NOW_PLAYING ]</span>
+          <button id="toggle-lyrics-btn" class="tui-btn-small"
+            style="font-size: 0.7rem; color: var(--accent-color);">[LYRICS]</button>
+        </div>
         <div class="cover-art-large tui-box">
           <img id="np-cover" src="" class="hidden" alt="Cover" />
+          <div id="lyrics-sidebar-view" class="lyrics-sidebar-view hidden scrollable">
+            <!-- LRC/Plain lyrics injected here -->
+          </div>
           <div id="np-placeholder" class="ascii-art">
             ♫
           </div>
@@ -35,6 +42,15 @@
         <div class="track-info">
           <div id="np-title" class="scrolling-text">WAITING...</div>
           <div id="np-artist" class="sub-text"></div>
+        </div>
+
+        <!-- PROGRESS BAR -->
+        <div class="progress-container">
+          <div class="time-info">
+            <span id="curr-time">0:00</span>
+            <span id="total-time">0:00</span>
+          </div>
+          <input type="range" id="progress-bar" min="0" max="100" value="0" class="tui-slider" />
         </div>
 
         <!-- CONTROLS -->
@@ -58,6 +74,18 @@
         <span id="library-stats">ITEMS: 0</span>
       </div>
 
+
+      <!-- SEARCH OVERLAY (Keyboard Activated) -->
+      <div id="search-overlay" class="search-overlay hidden">
+        <div
+          style="display: flex; align-items: center; gap: 10px; padding: 10px 20px; background: var(--bg-color); border: 1px solid var(--accent-color);">
+          <span style="color: var(--accent-color);">//</span>
+          <input type="text" id="search-input" class="tui-input" placeholder="SEARCH: track, album, artist..."
+            style="flex: 1; margin: 0; font-size: 0.85rem; padding: 6px 8px; border: none; background: transparent;" />
+          <span style="color: var(--subtext-color); font-size: 0.7rem;">ESC to close</span>
+        </div>
+      </div>
+
       <!-- VIEW: TRACKS -->
       <div id="track-list" class="view-section track-list scrollable" style="width: 100%;">
         <div class="empty-state">No tracks found. Scan your library.</div>
@@ -72,37 +100,79 @@
       <div id="album-details-view" class="view-section hidden">
         <!-- Details injected here -->
       </div>
+
     </main>
+
+    <!-- LYRICS PANEL (Integrated Split) -->
   </div>
 
   <!-- MODALS -->
   <div id="settings-modal" class="modal-overlay hidden">
     <div class="modal tui-window">
       <div class="modal-header tui-border-bottom">
-        <h3>// SYSTEM_CONFIG</h3>
+        <h3>// SETTINGS</h3>
         <button id="close-settings" class="tui-btn-small">[X]</button>
       </div>
-      <div class="modal-body">
-        <div class="tui-group">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
-            <label>LIBRARY PATHS:</label>
-            <button id="wipe-db-btn" class="tui-btn-small"
-              style="color: red; text-decoration: underline; font-size: 0.8rem;">[ WIPE LIBRARY (RESET DB) ]</button>
-          </div>
-          <div id="path-list" class="path-list tui-input-area"></div>
+      <div class="modal-body settings-panel">
+        <div class="settings-nav">
+          <button class="settings-tab tui-btn active" data-section="library">LIBRARY</button>
+          <button class="settings-tab tui-btn" data-section="integrations">INTEGRATIONS</button>
+          <button class="settings-tab tui-btn" data-section="playback">PLAYBACK</button>
+          <button class="settings-tab tui-btn" data-section="appearance">APPEARANCE</button>
         </div>
-        <div class="tui-row">
-          <input type="text" id="new-path-input" class="tui-input" placeholder="C:\Music..." />
-          <button id="add-path-btn" class="tui-btn">[ ADD ]</button>
-        </div>
-        <div class="tui-actions">
-          <button id="scan-now-btn" class="tui-btn full-width" style="margin-bottom: 10px;">[ EXECUTE: RESCAN_LIBRARY
-            ]</button>
 
-          <div
-            style="display:flex; justify-content:space-between; align-items:center; border-top: 1px dotted #333; padding-top: 10px;">
-            <span class="tui-text">DISCORD RICH PRESENCE</span>
-            <input type="checkbox" id="discord-toggle" checked />
+        <div class="settings-content">
+          <div class="settings-section" id="settings-library">
+            <div class="tui-group">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                <label>LIBRARY PATHS:</label>
+                <button id="wipe-db-btn" class="tui-btn-small" style="color: red; text-decoration: underline; font-size: 0.8rem;">[ WIPE LIBRARY ]</button>
+              </div>
+              <div id="path-list" class="path-list tui-input-area"></div>
+            </div>
+            <div class="tui-row" style="margin-top:10px; display:flex; gap:8px; align-items:center;">
+              <input type="text" id="new-path-input" class="tui-input" placeholder="C:\\Music..." />
+              <button id="add-path-btn" class="tui-btn">[ ADD ]</button>
+            </div>
+            <div class="tui-actions" style="margin-top:12px;">
+              <button id="scan-now-btn" class="tui-btn full-width" style="margin-bottom: 10px;">[ EXECUTE: RESCAN_LIBRARY ]</button>
+            </div>
+          </div>
+
+          <div class="settings-section hidden" id="settings-integrations">
+            <div class="tui-field" style="display:flex; justify-content:space-between; align-items:center;">
+              <span class="tui-text">DISCORD RICH PRESENCE</span>
+              <input type="checkbox" id="discord-toggle" checked />
+            </div>
+            <div class="tui-field" style="display:flex; justify-content:space-between; align-items:center;">
+              <span class="tui-text">LYRICS SUPPORT</span>
+              <input type="checkbox" id="lyrics-toggle" checked />
+            </div>
+          </div>
+
+          <div class="settings-section hidden" id="settings-playback">
+            <div class="tui-field">
+              <label>DEFAULT VOLUME</label>
+              <input type="range" id="default-volume" min="0" max="100" value="100" class="tui-slider" />
+            </div>
+            <div class="tui-field">
+              <label>GAPLESS PLAYBACK</label>
+              <input type="checkbox" id="gapless-toggle" />
+            </div>
+          </div>
+
+          <div class="settings-section hidden" id="settings-appearance">
+            <div class="tui-field">
+              <label>THEME</label>
+              <select id="theme-select" class="tui-input">
+                <option value="dark">Dark</option>
+                <option value="light">Light (placeholder)</option>
+              </select>
+            </div>
+            <div class="tui-field">
+              <label>UI SCALE</label>
+              <input type="range" id="ui-scale" min="80" max="140" value="100" class="tui-slider" />
+            </div>
           </div>
         </div>
       </div>

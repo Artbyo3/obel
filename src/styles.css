@@ -65,6 +65,11 @@ body {
   /* Outer Border */
 }
 
+.scrollable {
+  overflow-y: auto !important;
+  min-height: 0;
+}
+
 /* TUI Panels */
 .tui-panel {
   background-color: var(--panel-bg);
@@ -197,6 +202,20 @@ body {
 .sub-text {
   color: var(--subtext-color);
   font-size: 0.9em;
+}
+
+/* Progress Bar */
+.progress-container {
+  margin-bottom: 15px;
+}
+
+.time-info {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  color: var(--subtext-color);
+  margin-bottom: 5px;
+  font-family: var(--font-main);
 }
 
 /* Controls */
@@ -461,6 +480,33 @@ body {
   padding: 20px;
 }
 
+/* Settings Panel (Tabs + Sections) */
+.settings-panel {
+  display: flex;
+  gap: 16px;
+}
+.settings-nav {
+  width: 140px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.settings-content {
+  flex: 1;
+  min-height: 160px;
+}
+.settings-section {
+  display: block;
+}
+.settings-section.hidden {
+  display: none;
+}
+.settings-nav .tui-btn {
+  width: 100%;
+  padding: 8px 10px;
+  text-align: left;
+}
+
 .tui-input {
   width: 100%;
   background: black;
@@ -499,4 +545,43 @@ body {
   cursor: pointer;
   color: inherit;
   /* Takes parent color (usually inverted header) */
+}
+
+/* Sidebar Lyrics View */
+.lyrics-sidebar-view {
+  width: 100%;
+  height: 100%;
+  padding: 10px;
+  background-color: #000;
+  font-family: var(--font-main);
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--subtext-color);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: center;
+}
+
+.lyric-line {
+  transition: color 0.2s, background 0.2s;
+  padding: 3px 2px;
+}
+
+.lyric-line.active {
+  color: var(--accent-color);
+  font-weight: bold;
+  background: rgba(0, 255, 0, 0.1);
+}
+
+/* Search Overlay (Keyboard Activated) */
+.search-overlay {
+  position: fixed;
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+  min-width: 500px;
+  max-width: 600px;
+  box-shadow: 0 4px 12px rgba(0, 255, 0, 0.2);
 }

@@ -8,17 +8,18 @@ let currentView: 'tracks' | 'albums' | 'album-details' = 'tracks';
 let currentAlbumContext: any = null; // Stores the album currently being viewed
 let playbackQueue: any[] = [];
 let currentQueueIndex = -1;
+let searchQuery = "";
 
 // --- DOM Elements ---
 const views = {
   tracks: () => document.getElementById("track-list"),
   albums: () => document.getElementById("album-grid"),
-  details: () => document.getElementById("album-details-view")
+  details: () => document.getElementById("album-details-view"),
 };
 
 const navBtns = {
   tracks: () => document.getElementById("tracks-btn"),
-  albums: () => document.getElementById("albums-btn")
+  albums: () => document.getElementById("albums-btn"),
 };
 
 // --- Initialization ---
@@ -34,6 +35,8 @@ window.addEventListener("DOMContentLoaded", () => {
   document.getElementById("add-path-btn")?.addEventListener("click", addPath);
   document.getElementById("scan-now-btn")?.addEventListener("click", scanLibrary);
   document.getElementById("wipe-db-btn")?.addEventListener("click", wipeDatabase);
+  // Settings panel tabs
+  setupSettingsTabs();
 
   // Discord Toggle
   const discordToggle = document.getElementById("discord-toggle") as HTMLInputElement;
@@ -69,9 +72,254 @@ window.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  // Progress Bar
+  const progressBar = document.getElementById("progress-bar") as HTMLInputElement;
+  if (progressBar) {
+    progressBar.addEventListener("change", (e: Event) => {
+      const val = (e.target as HTMLInputElement).value;
+      invoke("seek_track", { seconds: parseFloat(val) });
+    });
+    // Optional: Update current time label as user drags
+    progressBar.addEventListener("input", (e: Event) => {
+      const val = (e.target as HTMLInputElement).value;
+      const currTimeEl = document.getElementById("curr-time");
+      if (currTimeEl) currTimeEl.textContent = formatDuration(parseFloat(val));
+    });
+  }
+
+  listen("playback-progress", (event: any) => {
+    const elapsed = event.payload as number;
+    const bar = document.getElementById("progress-bar") as HTMLInputElement;
+    const currTimeEl = document.getElementById("curr-time");
+
+    if (bar) bar.value = elapsed.toString();
+    if (currTimeEl) currTimeEl.textContent = formatDuration(elapsed);
+    updateLyricHighlight(elapsed);
+  });
+
+  // Sidebar Lyrics Toggle
+  const toggleLyricsBtn = document.getElementById("toggle-lyrics-btn");
+  if (toggleLyricsBtn) {
+    toggleLyricsBtn.addEventListener("click", () => {
+      toggleLyricsSidebar();
+    });
+  }
+
+  // Cover art click to navigate to album
+  const coverArt = document.getElementById("np-cover");
+  if (coverArt) {
+    coverArt.style.cursor = "pointer";
+    coverArt.addEventListener("click", async () => {
+      if (!currentTrack || !currentTrack.album) return;
+
+      // Try to resolve album from local tracks (preferred)
+      await ensureTracksLoaded();
+
+      const albumsMap: Record<string, any> = {};
+      tracks.forEach(t => {
+        const key = `${(t.album||'').toString()}||${(t.artist||'').toString()}`;
+        if (!albumsMap[key]) albumsMap[key] = { name: t.album || 'Unknown Album', artist: t.artist || 'Unknown', tracks: [], cover: t.cover_art };
+        albumsMap[key].tracks.push(t);
+        if (!albumsMap[key].cover && t.cover_art) albumsMap[key].cover = t.cover_art;
+      });
+
+      const lookupKey = `${currentTrack.album}||${currentTrack.artist}`;
+      let album = albumsMap[lookupKey];
+
+      // Fallback: try matching by album name only (case-insensitive)
+      if (!album) {
+        const lowerName = (currentTrack.album || '').toString().toLowerCase();
+        for (const k in albumsMap) {
+          if (albumsMap[k].name && albumsMap[k].name.toString().toLowerCase() === lowerName) {
+            album = albumsMap[k];
+            break;
+          }
+        }
+      }
+
+      // Last resort: ask backend if available
+      if (!album) {
+        try {
+          const remoteAlbums = await invoke("get_albums") as any[];
+          album = remoteAlbums.find(a => (a.name === currentTrack.album && a.artist === currentTrack.artist) || (a.name === currentTrack.album));
+        } catch (e) {
+          console.warn('get_albums backend call failed', e);
+        }
+      }
+
+      if (album) switchView('album-details', album);
+    });
+  }
+
+  // Keyboard-activated search
+  const searchOverlay = document.getElementById("search-overlay");
+  const searchInput = document.getElementById("search-input") as HTMLInputElement;
+
+  // Global keyboard listener
+  document.addEventListener("keydown", (e) => {
+    // Show search on any alphanumeric key (if not already focused on an input)
+    if (!searchOverlay?.classList.contains("hidden")) return;
+    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
+    // Check if it's a printable character
+    if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      e.preventDefault();
+      searchOverlay?.classList.remove("hidden");
+      if (searchInput) {
+        searchInput.value = e.key;
+        searchInput.focus();
+        searchQuery = e.key.toLowerCase();
+
+        // Trigger search
+        if (currentView === 'tracks') loadTracks();
+        if (currentView === 'album-details' && currentAlbumContext) renderAlbumDetails(currentAlbumContext);
+      }
+    }
+  });
+
+  if (searchInput) {
+    searchInput.addEventListener("input", (e) => {
+      searchQuery = (e.target as HTMLInputElement).value.toLowerCase().trim();
+
+      // Re-render current view with filter
+      if (currentView === 'tracks') loadTracks();
+      if (currentView === 'album-details' && currentAlbumContext) renderAlbumDetails(currentAlbumContext);
+    });
+
+    // Close on Escape
+    searchInput.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        searchInput.value = "";
+        searchQuery = "";
+        searchOverlay?.classList.add("hidden");
+
+        // Re-render to show all items
+        if (currentView === 'tracks') loadTracks();
+        if (currentView === 'album-details' && currentAlbumContext) renderAlbumDetails(currentAlbumContext);
+      }
+    });
+  }
+
   setupDragDrop();
   loadTracks(); // Initial load
 });
+
+let lyricsVisible = false;
+let parsedLyrics: Array<{ time: number, text: string }> = [];
+let currentLyricIndex = -1;
+
+function toggleLyricsSidebar() {
+  const lyricsView = document.getElementById("lyrics-sidebar-view");
+  const coverImg = document.getElementById("np-cover");
+  const placeholder = document.getElementById("np-placeholder");
+
+  if (!lyricsView) return;
+
+  lyricsVisible = !lyricsVisible;
+
+  if (lyricsVisible) {
+    lyricsView.classList.remove("hidden");
+    coverImg?.classList.add("hidden");
+    placeholder?.classList.add("hidden");
+    loadLyrics();
+  } else {
+    lyricsView.classList.add("hidden");
+    const coverImgEl = coverImg as HTMLImageElement;
+    // Show cover if it exists, otherwise show placeholder
+    if (currentTrack?.cover_art && coverImgEl) {
+      coverImgEl.classList.remove("hidden");
+      placeholder?.classList.add("hidden");
+    } else {
+      coverImgEl?.classList.add("hidden");
+      placeholder?.classList.remove("hidden");
+    }
+  }
+}
+
+async function loadLyrics() {
+  const lyricsView = document.getElementById("lyrics-sidebar-view");
+  if (!lyricsView) return;
+
+  if (!currentTrack) {
+    lyricsView.innerHTML = "<div style='padding: 20px;'>[NO_TRACK]</div>";
+    parsedLyrics = [];
+    return;
+  }
+
+  lyricsView.innerHTML = "<div style='padding: 20px;'>[LOADING...]</div>";
+  try {
+    const lyricsText = await invoke("get_lyrics", { path: currentTrack.path }) as string;
+    parsedLyrics = parseLRC(lyricsText);
+    renderLyrics();
+  } catch (e) {
+    lyricsView.innerHTML = "<div style='padding: 20px;'>[NO_LYRICS]</div>";
+    parsedLyrics = [];
+  }
+}
+
+function parseLRC(text: string): Array<{ time: number, text: string }> {
+  const lines = text.split('\n');
+  const parsed: Array<{ time: number, text: string }> = [];
+  const lrcRegex = /\[(\d{2}):(\d{2})\.(\d{2})\](.*)$/;
+
+  for (const line of lines) {
+    const match = line.match(lrcRegex);
+    if (match) {
+      const minutes = parseInt(match[1]);
+      const seconds = parseInt(match[2]);
+      const centiseconds = parseInt(match[3]);
+      const time = minutes * 60 + seconds + centiseconds / 100;
+      const text = match[4].trim();
+      if (text) parsed.push({ time, text });
+    }
+  }
+
+  // If no timestamps found, treat as plain text
+  if (parsed.length === 0) {
+    lines.forEach(line => {
+      const trimmed = line.trim();
+      if (trimmed) parsed.push({ time: -1, text: trimmed });
+    });
+  }
+
+  return parsed;
+}
+
+function renderLyrics() {
+  const lyricsView = document.getElementById("lyrics-sidebar-view");
+  if (!lyricsView || parsedLyrics.length === 0) return;
+
+  lyricsView.innerHTML = parsedLyrics.map((lyric, idx) =>
+    `<div class="lyric-line" data-index="${idx}">${lyric.text}</div>`
+  ).join('');
+}
+
+function updateLyricHighlight(currentTime: number) {
+  if (!lyricsVisible || parsedLyrics.length === 0) return;
+  if (parsedLyrics[0].time === -1) return; // Plain text, no sync
+
+  let activeIndex = -1;
+  for (let i = parsedLyrics.length - 1; i >= 0; i--) {
+    if (currentTime >= parsedLyrics[i].time) {
+      activeIndex = i;
+      break;
+    }
+  }
+
+  if (activeIndex !== currentLyricIndex) {
+    currentLyricIndex = activeIndex;
+    const lines = document.querySelectorAll(".lyric-line");
+    lines.forEach((line, idx) => {
+      if (idx === activeIndex) {
+        line.classList.add("active");
+        line.scrollIntoView({ behavior: "smooth", block: "center" });
+      } else {
+        line.classList.remove("active");
+      }
+    });
+  }
+}
 
 // --- View Management ---
 
@@ -155,11 +403,20 @@ function renderVirtualTracks() {
   const container = views.tracks();
   if (!container) return;
 
+  // Filter tracks based on search query
+  const filteredTracks = searchQuery
+    ? tracks.filter(t =>
+      (t.title?.toLowerCase().includes(searchQuery)) ||
+      (t.artist?.toLowerCase().includes(searchQuery)) ||
+      (t.album?.toLowerCase().includes(searchQuery))
+    )
+    : tracks;
+
   const scrollTop = container.scrollTop;
   const containerHeight = container.clientHeight;
 
   const startIndex = Math.floor(scrollTop / ROW_HEIGHT);
-  const endIndex = Math.min(tracks.length - 1, Math.ceil((scrollTop + containerHeight) / ROW_HEIGHT));
+  const endIndex = Math.min(filteredTracks.length - 1, Math.ceil((scrollTop + containerHeight) / ROW_HEIGHT));
 
   // Get elements
   let spacer = container.querySelector(".vs-spacer") as HTMLElement;
@@ -167,7 +424,7 @@ function renderVirtualTracks() {
 
   if (!spacer || !content) return; // Should have been created in loadTracks
 
-  spacer.style.height = `${tracks.length * ROW_HEIGHT}px`;
+  spacer.style.height = `${filteredTracks.length * ROW_HEIGHT}px`;
   spacer.style.position = "relative";
 
   content.style.position = "absolute";
@@ -181,7 +438,7 @@ function renderVirtualTracks() {
 
   // Render only visible slice
   for (let i = startIndex; i <= endIndex; i++) {
-    const track = tracks[i];
+    const track = filteredTracks[i];
     const div = document.createElement("div");
     div.className = "track-item";
     div.style.height = `${ROW_HEIGHT}px`;
@@ -197,9 +454,12 @@ function renderVirtualTracks() {
       div.classList.add("playing");
     }
 
-    div.onclick = () => playTrack(track, tracks);
+    div.onclick = () => playTrack(track, filteredTracks);
     content.appendChild(div);
   }
+
+  // Update status bar with filtered count
+  updateStatusBar("VIEW: TRACKS", `${filteredTracks.length} ITEMS${searchQuery ? ' (FILTERED)' : ''}`);
 }
 
 async function loadAlbums() {
@@ -253,8 +513,20 @@ function renderAlbumDetails(album: any) {
   if (!container) return;
 
   const scrollTop = container.scrollTop;
-
   updateStatusBar("VIEW: ARCHIVE", `ALBUM: ${album.name.toUpperCase()}`);
+
+  // Infer album year from track years (most common year or first available)
+  let albumYear: string | null = null;
+  try {
+    const years = (album.tracks || []).map((t: any) => t.year).filter((y: any) => y !== null && y !== undefined);
+    if (years.length > 0) {
+      // compute mode
+      const counts: Record<string, number> = {};
+      years.forEach((y: any) => { const k = String(y); counts[k] = (counts[k] || 0) + 1; });
+      const sorted = Object.keys(counts).sort((a,b) => counts[b] - counts[a]);
+      albumYear = sorted[0];
+    }
+  } catch (e) { albumYear = null; }
 
   container.innerHTML = `
     <div class="details-header">
@@ -265,7 +537,7 @@ function renderAlbumDetails(album: any) {
         <h2 class="details-title">${album.name}</h2>
         <h3 class="details-artist">${album.artist}</h3>
         <div class="tui-text" style="color:#666; margin-bottom: 20px;">
-           YEAR: 2024 (Unknown) <br>
+           YEAR: ${albumYear ? albumYear : 'Unknown'} <br>
            TRACKS: ${album.tracks.length} <br>
            TOTAL TIME: ${calcTotalDuration(album.tracks)}
         </div>
@@ -436,13 +708,29 @@ function updatePlayerUI() {
     if (currentTrack.cover_art) {
       if (coverEl) {
         coverEl.src = convertFileSrc(currentTrack.cover_art);
-        coverEl.classList.remove("hidden");
+        // Only show cover if lyrics are not visible
+        if (!lyricsVisible) {
+          coverEl.classList.remove("hidden");
+        }
       }
-      if (placeEl) placeEl.classList.add("hidden");
+      if (placeEl && !lyricsVisible) placeEl.classList.add("hidden");
     } else {
       if (coverEl) coverEl.classList.add("hidden");
-      if (placeEl) placeEl.classList.remove("hidden");
+      if (placeEl && !lyricsVisible) placeEl.classList.remove("hidden");
     }
+
+    // Update Progress Bar range
+    const bar = document.getElementById("progress-bar") as HTMLInputElement;
+    const totalTimeEl = document.getElementById("total-time");
+    if (bar && currentTrack.duration) {
+      bar.max = currentTrack.duration.toString();
+      bar.value = "0";
+    }
+    if (totalTimeEl) {
+      totalTimeEl.textContent = formatDuration(currentTrack.duration || 0);
+    }
+
+    if (lyricsVisible) loadLyrics();
   }
 }
 
@@ -639,4 +927,21 @@ function openSettings() {
 }
 function closeSettings() {
   document.getElementById("settings-modal")?.classList.add("hidden");
+}
+
+function setupSettingsTabs() {
+  const tabs = Array.from(document.querySelectorAll('.settings-tab')) as HTMLElement[];
+  const sections = Array.from(document.querySelectorAll('.settings-section')) as HTMLElement[];
+
+  function showSection(name: string) {
+    tabs.forEach(t => t.classList.toggle('active', t.dataset.section === name));
+    sections.forEach(s => s.classList.toggle('hidden', s.id !== `settings-${name}`));
+  }
+
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => showSection(tab.dataset.section || 'library'));
+  });
+
+  // Ensure a sensible default
+  showSection('library');
 }

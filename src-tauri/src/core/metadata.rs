@@ -8,6 +8,7 @@ pub struct TrackMetadata {
     pub artist: Option<String>,
     pub album: Option<String>,
     pub genre: Option<String>,
+    pub year: Option<i32>,
     pub duration: Option<i32>, // in seconds
     pub cover_data: Option<Vec<u8>>,
     pub cover_mime: Option<String>,
@@ -21,7 +22,7 @@ pub fn read_metadata(path: &Path) -> Option<TrackMetadata> {
 
             let duration = properties.duration().as_secs() as i32;
 
-            let (title, artist, album, genre, cover_data, cover_mime) = if let Some(tag) = tag {
+            let (title, artist, album, genre, year, cover_data, cover_mime) = if let Some(tag) = tag {
                 let pic = tag.pictures().first();
                 let cover_data = pic.map(|p| p.data().to_vec());
                 let cover_mime = pic.map(|p| {
@@ -29,17 +30,17 @@ pub fn read_metadata(path: &Path) -> Option<TrackMetadata> {
                         .unwrap_or(&lofty::picture::MimeType::Jpeg)
                         .to_string()
                 });
-
                 (
                     tag.title().map(|s| s.to_string()),
                     tag.artist().map(|s| s.to_string()),
                     tag.album().map(|s| s.to_string()),
                     tag.genre().map(|s| s.to_string()),
+                    tag.year().map(|y| y as i32),
                     cover_data,
                     cover_mime,
                 )
             } else {
-                (None, None, None, None, None, None)
+                (None, None, None, None, None, None, None)
             };
 
             Some(TrackMetadata {
@@ -47,6 +48,7 @@ pub fn read_metadata(path: &Path) -> Option<TrackMetadata> {
                 artist,
                 album,
                 genre,
+                year,
                 duration: Some(duration),
                 cover_data,
                 cover_mime,

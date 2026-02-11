@@ -9,6 +9,7 @@ pub struct Track {
     pub artist: Option<String>,
     pub album: Option<String>,
     pub genre: Option<String>,
+    pub year: Option<i32>,
     pub cover_art: Option<String>,
     pub duration: Option<i32>,
     pub last_modified: Option<i64>, // mtime in seconds
@@ -27,6 +28,7 @@ pub fn init_db(db_path: &Path) -> Result<Connection> {
             artist TEXT,
             album TEXT,
             genre TEXT,
+            year INTEGER,
             cover_art TEXT,
             duration INTEGER,
             last_modified INTEGER
@@ -50,6 +52,8 @@ pub fn init_db(db_path: &Path) -> Result<Connection> {
 
     // Add column if not exists (migration)
     let _ = conn.execute("ALTER TABLE tracks ADD COLUMN last_modified INTEGER", []);
+    // Add year column if missing (best-effort migration)
+    let _ = conn.execute("ALTER TABLE tracks ADD COLUMN year INTEGER", []);
 
     conn.execute(
         "CREATE TABLE IF NOT EXISTS library_roots (
@@ -72,17 +76,18 @@ pub fn add_track(
     cover_art: Option<&str>,
     duration: Option<i32>,
     last_modified: Option<i64>,
+    year: Option<i32>,
 ) -> Result<()> {
     conn.execute(
-        "INSERT OR REPLACE INTO tracks (path, title, artist, album, genre, cover_art, duration, last_modified) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
-        params![path, title, artist, album, genre, cover_art, duration, last_modified],
+        "INSERT OR REPLACE INTO tracks (path, title, artist, album, genre, year, cover_art, duration, last_modified) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+        params![path, title, artist, album, genre, year, cover_art, duration, last_modified],
     )?;
     Ok(())
 }
 
 pub fn get_all_tracks(conn: &Connection) -> Result<Vec<Track>> {
     let mut stmt = conn
-        .prepare("SELECT id, path, title, artist, album, genre, duration, cover_art, last_modified FROM tracks")?;
+        .prepare("SELECT id, path, title, artist, album, genre, year, duration, cover_art, last_modified FROM tracks")?;
     let track_iter = stmt.query_map([], |row| {
         Ok(Track {
             id: row.get(0)?,
@@ -91,9 +96,10 @@ pub fn get_all_tracks(conn: &Connection) -> Result<Vec<Track>> {
             artist: row.get(3)?,
             album: row.get(4)?,
             genre: row.get(5)?,
-            duration: row.get(6)?,
-            cover_art: row.get(7)?,
-            last_modified: row.get(8)?,
+            year: row.get(6)?,
+            duration: row.get(7)?,
+            cover_art: row.get(8)?,
+            last_modified: row.get(9)?,
         })
     })?;
 

@@ -12,6 +12,7 @@ pub enum AudioCommand {
     #[allow(dead_code)]
     Stop,
     SetVolume(f32),
+    Seek(f64),
 }
 
 pub struct AudioSystem {
@@ -29,7 +30,7 @@ impl AudioSystem {
 
             loop {
                 // Check for commands with a timeout to allow monitoring the sink
-                match rx.recv_timeout(std::time::Duration::from_millis(100)) {
+                match rx.recv_timeout(std::time::Duration::from_millis(500)) {
                     Ok(cmd) => match cmd {
                         AudioCommand::Play(path) => {
                             if !sink.empty() {
@@ -55,13 +56,22 @@ impl AudioSystem {
                             playing_started = false;
                         }
                         AudioCommand::SetVolume(vol) => sink.set_volume(vol),
+                        AudioCommand::Seek(seconds) => {
+                            let _ = sink.try_seek(std::time::Duration::from_secs_f64(seconds));
+                        }
                     },
                     Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
                         // Monitor sink status when we don't have new commands
-                        if playing_started && sink.empty() {
-                            playing_started = false;
-                            println!("AudioSystem: Track finished, emitting event");
-                            let _ = app_handle.emit("track-finished", ());
+                        if playing_started {
+                            if sink.empty() {
+                                playing_started = false;
+                                println!("AudioSystem: Track finished, emitting event");
+                                let _ = app_handle.emit("track-finished", ());
+                            } else {
+                                // Emit progress
+                                let pos = sink.get_pos();
+                                let _ = app_handle.emit("playback-progress", pos.as_secs_f64());
+                            }
                         }
                     }
                     Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => break,
@@ -91,5 +101,9 @@ impl AudioSystem {
 
     pub fn set_volume(&self, volume: f32) {
         let _ = self.command_tx.send(AudioCommand::SetVolume(volume));
+    }
+
+    pub fn seek(&self, seconds: f64) {
+        let _ = self.command_tx.send(AudioCommand::Seek(seconds));
     }
 }

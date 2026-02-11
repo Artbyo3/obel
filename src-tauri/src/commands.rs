@@ -104,6 +104,7 @@ pub async fn scan_library(state: State<'_, DbState>, app_handle: tauri::AppHandl
                     cover_path.as_deref(),
                     meta.duration,
                     mtime,
+                    meta.year,
                 );
 
                 if res.is_ok() {
@@ -301,6 +302,13 @@ pub fn resume_track(audio: State<'_, std::sync::Mutex<AudioSystem>>) -> Result<(
 }
 
 #[tauri::command]
+pub fn seek_track(seconds: f64, audio: State<'_, std::sync::Mutex<AudioSystem>>) -> Result<(), String> {
+    let system = audio.lock().map_err(|e| e.to_string())?;
+    system.seek(seconds);
+    Ok(())
+}
+
+#[tauri::command]
 pub fn set_volume(volume: f32, audio: State<'_, std::sync::Mutex<AudioSystem>>) -> Result<(), String> {
     let system = audio.lock().map_err(|e| e.to_string())?;
     system.set_volume(volume);
@@ -308,7 +316,7 @@ pub fn set_volume(volume: f32, audio: State<'_, std::sync::Mutex<AudioSystem>>) 
 }
 
 #[tauri::command]
-pub async fn update_album_metadata(
+pub fn update_album_metadata(
     old_name: String,
     new_name: String,
     new_artist: String,
@@ -316,4 +324,31 @@ pub async fn update_album_metadata(
 ) -> Result<(), String> {
     let conn = state.conn.lock().map_err(|e| e.to_string())?;
     schema::update_album_metadata(&conn, &old_name, &new_name, &new_artist).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn get_lyrics(path: String) -> Result<String, String> {
+    let path = std::path::Path::new(&path);
+    let parent = path.parent().ok_or("Invalid path")?;
+    let stem = path.file_stem().ok_or("Invalid file name")?;
+    
+    // Check for .lrc then .txt
+    let lrc_path = parent.join(format!("{}.lrc", stem.to_string_lossy()));
+    let txt_path = parent.join(format!("{}.txt", stem.to_string_lossy()));
+    
+    if lrc_path.exists() {
+        std::fs::read_to_string(lrc_path).map_err(|e| e.to_string())
+    } else if txt_path.exists() {
+        std::fs::read_to_string(txt_path).map_err(|e| e.to_string())
+    } else {
+        Err("Lyrics not found".to_string())
+    }
+}
+
+#[tauri::command]
+pub fn set_lyrics_enabled(enabled: bool, settings: State<'_, AppSettings>) -> Result<(), String> {
+    if let Ok(mut enabled_guard) = settings.lyrics_enabled.lock() {
+        *enabled_guard = enabled;
+    }
+    Ok(())
 }
