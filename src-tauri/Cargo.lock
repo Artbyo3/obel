@@ -2484,6 +2484,7 @@ name = "obel_app"
 version = "0.1.0"
 dependencies = [
  "base64 0.22.1",
+ "cpal",
  "discord-rich-presence",
  "lofty",
  "once_cell",
@@ -2495,6 +2496,7 @@ dependencies = [
  "tauri",
  "tauri-build",
  "tauri-plugin-opener",
+ "thiserror 2.0.18",
  "tokio",
  "urlencoding",
  "walkdir",

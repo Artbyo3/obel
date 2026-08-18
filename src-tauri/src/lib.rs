@@ -1,11 +1,11 @@
 mod commands;
 mod core;
 mod db;
-
-use std::sync::Mutex;
+mod error;
 
 use core::playback::AudioSystem;
 use rusqlite::Connection;
+use std::sync::Mutex;
 use tauri::Emitter;
 
 pub struct DbState {
@@ -13,9 +13,9 @@ pub struct DbState {
 }
 
 pub struct AppSettings {
-    pub discord_enabled: Mutex<bool>,
-    pub discord_rpc: Mutex<Option<core::discord::DiscordRPC>>,
-    pub lyrics_enabled: Mutex<bool>,
+    pub discord_enabled: tokio::sync::RwLock<bool>,
+    pub rpc: tokio::sync::RwLock<Option<core::discord::DiscordRPC>>,
+    pub lyrics_enabled: tokio::sync::RwLock<bool>,
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -32,53 +32,40 @@ pub fn run() {
             std::fs::create_dir_all(&app_data_dir).expect("failed to create app data dir");
             let db_path = app_data_dir.join("library.db");
 
-            println!("Database path: {:?}", db_path);
-
             let conn = db::schema::init_db(&db_path).expect("Failed to initialize database");
             app.manage(DbState {
                 conn: Mutex::new(conn),
             });
 
             let audio_system = AudioSystem::new(app.handle().clone());
-            app.manage(Mutex::new(audio_system));
+            app.manage(audio_system);
 
-            // Discord RPC (User Provided ID)
-            println!("DiscordRPC: Initializing with ID 1470417644732809259");
             let discord_rpc = core::discord::DiscordRPC::new("1470417644732809259");
             if discord_rpc.is_none() {
-                println!(
-                    "DiscordRPC: Could not connect to Discord on startup. It might not be running."
-                );
+                println!("DiscordRPC: Could not connect to Discord on startup.");
             }
             app.manage(AppSettings {
-                discord_enabled: Mutex::new(true),
-                discord_rpc: Mutex::new(discord_rpc),
-                lyrics_enabled: Mutex::new(true),
+                discord_enabled: tokio::sync::RwLock::new(true),
+                rpc: tokio::sync::RwLock::new(discord_rpc),
+                lyrics_enabled: tokio::sync::RwLock::new(true),
             });
 
             Ok(())
         })
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::DragDrop(event) = event {
-                println!("Rust WindowEvent::DragDrop: {:?}", event);
-                match event {
-                    tauri::DragDropEvent::Drop { paths, .. } => {
-                        println!("Rust Drop Detected: {:?}", paths);
-                        // Manually emit event to ensure frontend gets it
-                        let paths_str: Vec<String> = paths
-                            .iter()
-                            .map(|p| p.to_string_lossy().to_string())
-                            .collect();
-                        if let Err(e) = window.emit("custom-file-drop", paths_str) {
-                            eprintln!("Failed to emit custom-file-drop: {}", e);
-                        }
-                    }
-                    _ => {}
+                if let tauri::DragDropEvent::Drop { paths, .. } = event {
+                    let paths_str: Vec<String> = paths
+                        .iter()
+                        .map(|p| p.to_string_lossy().to_string())
+                        .collect();
+                    let _ = window.emit("file-drop", paths_str);
                 }
             }
         })
         .invoke_handler(tauri::generate_handler![
             commands::greet,
+            commands::download_from_youtube,
             commands::scan_library,
             commands::get_tracks,
             commands::play_track,
@@ -97,7 +84,9 @@ pub fn run() {
             commands::wipe_library,
             commands::create_album,
             commands::import_file,
-            commands::test_discord_rpc
+            commands::test_discord_rpc,
+            commands::delete_album,
+            commands::import_dropped_paths,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
