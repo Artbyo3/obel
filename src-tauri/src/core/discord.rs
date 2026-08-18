@@ -14,6 +14,7 @@ impl DiscordRPC {
             println!("DiscordRPC: Connected with ID {}", app_id);
         } else {
             println!("DiscordRPC: Failed to connect on startup (will retry)");
+            return None;
         }
         Some(Self {
             client,

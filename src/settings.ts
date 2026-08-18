@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { setTracks } from "./state";
 import { loadTracks, loadAlbums } from "./views";
 import { getCurrentView } from "./state";
+import { escapeHtml } from "./utils";
 
 export function setupSettings() {
   document.getElementById("settings-btn")?.addEventListener("click", openSettings);
@@ -24,7 +25,7 @@ export async function loadLibraryPaths() {
       el.style.display = "flex";
       el.style.justifyContent = "space-between";
       el.style.marginBottom = "5px";
-      el.innerHTML = `<span>${path}</span> <button class="tui-btn-small" style="color:red">[DEL]</button>`;
+      el.innerHTML = `<span>${escapeHtml(path)}</span> <button class="tui-btn-small" style="color:red">[DEL]</button>`;
       (el.querySelector("button") as HTMLElement).onclick = () => removePath(path);
       list.appendChild(el);
     });

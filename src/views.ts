@@ -8,6 +8,7 @@ import {
 } from "./state";
 import { isCurrentTrack, playTrack, formatDuration, getFormat } from "./player";
 import { getIsPlaying } from "./state";
+import { escapeHtml } from "./utils";
 
 const views = {
   tracks: () => document.getElementById("track-list"),
@@ -122,8 +123,8 @@ function renderVirtualTracks() {
     div.style.height = `${ROW_HEIGHT}px`;
     div.innerHTML = `
       <span>${playing ? ">>" : (i + 1).toString().padStart(2, '0')}</span>
-      <span>${track.title || "Untitled"}</span>
-      <span>${track.artist || "Unknown"}</span>
+      <span>${escapeHtml(track.title || "Untitled")}</span>
+      <span>${escapeHtml(track.artist || "Unknown")}</span>
       <span class="format-tag">${getFormat(track.path)}</span>
       <span>${formatDuration(track.duration || 0)}</span>
     `;
@@ -141,38 +142,35 @@ export async function loadAlbums() {
   container.innerHTML = "";
 
   const allTracks = getTracks();
-  const albums: Record<string, Track[]> = {};
+  const albums: Record<string, { name: string; artist: string; tracks: Track[]; cover: string | null }> = {};
   allTracks.forEach(t => {
-    const key = t.album || "Unknown Album";
-    if (!albums[key]) albums[key] = [];
-    albums[key].push(t);
+    const key = `${t.album || "Unknown Album"}||${t.artist || "Unknown"}`;
+    if (!albums[key]) albums[key] = { name: t.album || "Unknown Album", artist: t.artist || "Unknown", tracks: [], cover: null };
+    albums[key].tracks.push(t);
+    if (!albums[key].cover && t.cover_art) albums[key].cover = t.cover_art;
   });
 
-  const albumKeys = Object.keys(albums);
-  if (albumKeys.length === 0) {
+  const albumEntries = Object.values(albums);
+  if (albumEntries.length === 0) {
     container.innerHTML = `<div class="text-center" style="padding:40px;">[ NO ALBUMS ]</div>`;
     return;
   }
 
-  updateStatusBar("VIEW: ALBUMS", `${albumKeys.length} ALBUMS`);
+  updateStatusBar("VIEW: ALBUMS", `${albumEntries.length} ALBUMS`);
 
-  albumKeys.forEach(name => {
-    const group = albums[name];
-    const artist = group[0]?.artist || "Unknown";
-    const cover = group.find(t => t.cover_art)?.cover_art || null;
-
+  albumEntries.forEach(album => {
     const card = document.createElement("div");
     card.className = "album-card";
     card.innerHTML = `
       <div class="album-cover">
-        ${cover ? `<img src="${convertFileSrc(cover)}" loading="lazy" />` : `<span style="font-size:2rem; opacity:0.3;">[ ]</span>`}
+        ${album.cover ? `<img src="${convertFileSrc(album.cover)}" loading="lazy" />` : `<span style="font-size:2rem; opacity:0.3;">[ ]</span>`}
       </div>
       <div class="album-info">
-        <div class="album-title">${name}</div>
-        <div class="album-artist">${artist}</div>
+        <div class="album-title">${escapeHtml(album.name)}</div>
+        <div class="album-artist">${escapeHtml(album.artist)}</div>
       </div>
     `;
-    card.onclick = () => switchView('album-details', { name, artist, tracks: group, cover });
+    card.onclick = () => switchView('album-details', album);
     container.appendChild(card);
   });
 }
@@ -203,8 +201,8 @@ export function renderAlbumDetails(album: Album) {
          ${album.cover ? `<img src="${convertFileSrc(album.cover)}" />` : `<div style="display:flex;justify-content:center;align-items:center;height:100%;font-size:3rem;color:#333;">▒</div>`}
       </div>
       <div class="details-meta">
-        <h2 class="details-title">${album.name}</h2>
-        <h3 class="details-artist">${album.artist}</h3>
+        <h2 class="details-title">${escapeHtml(album.name)}</h2>
+        <h3 class="details-artist">${escapeHtml(album.artist)}</h3>
         <div class="tui-text" style="color:#666; margin-bottom: 20px;">
            YEAR: ${albumYear || 'Unknown'} <br>
            TRACKS: ${album.tracks.length} <br>
@@ -235,8 +233,8 @@ export function renderAlbumDetails(album: Album) {
       row.className = "track-item" + (playing ? " playing" : "");
       row.innerHTML = `
          <span style="color:var(--subtext-color)">${playing ? ">>" : (i + 1).toString().padStart(2, '0') + "."}</span>
-         <span>${t.title}</span>
-         <span>${t.artist}</span>
+         <span>${escapeHtml(t.title || "Untitled")}</span>
+         <span>${escapeHtml(t.artist || "Unknown")}</span>
          <span>${formatDuration(t.duration || 0)}</span>
        `;
       row.onclick = () => playTrack(t, album.tracks);

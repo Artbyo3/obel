@@ -6,6 +6,7 @@ import {
   getPlaybackQueue, setPlaybackQueue,
   getCurrentQueueIndex, setCurrentQueueIndex,
 } from "./state";
+import { escapeHtml } from "./utils";
 
 export function isCurrentTrack(t: Track): boolean {
   const ct = getCurrentTrack();
@@ -76,6 +77,7 @@ export async function playPrev() {
 }
 
 export async function togglePlay() {
+  if (!getCurrentTrack()) return;
   if (getIsPlaying()) {
     await invoke("pause_track");
     setIsPlaying(false);
@@ -102,7 +104,7 @@ export function updatePlayerUI() {
 
     if (titleEl) titleEl.textContent = currentTrack.title || "Untitled";
     if (artistEl) {
-      artistEl.innerHTML = `${currentTrack.artist || "Unknown artist"} <span class="format-tag" style="margin-left:5px;">${getFormat(currentTrack.path)}</span>`;
+      artistEl.innerHTML = `${escapeHtml(currentTrack.artist || "Unknown artist")} <span class="format-tag" style="margin-left:5px;">${getFormat(currentTrack.path)}</span>`;
     }
 
     if (currentTrack.cover_art) {

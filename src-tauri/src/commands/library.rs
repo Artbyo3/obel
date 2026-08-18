@@ -5,6 +5,20 @@ use crate::DbState;
 use crate::core::library;
 use crate::core::metadata;
 
+fn save_cover_art(data: &[u8], mime: &str, covers_dir: &std::path::Path) -> Option<String> {
+    let hash = blake3::hash(data);
+    let ext = if mime.contains("png") { "png" } else { "jpg" };
+    let filename = format!("{}.{}", hash.to_hex(), ext);
+    let full_path = covers_dir.join(&filename);
+    if !full_path.exists() {
+        if let Err(e) = std::fs::write(&full_path, data) {
+            eprintln!("Failed to write cover art {}: {}", filename, e);
+            return None;
+        }
+    }
+    Some(filename)
+}
+
 #[tauri::command]
 pub fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
@@ -65,20 +79,7 @@ pub async fn scan_library(state: State<'_, DbState>, app_handle: tauri::AppHandl
                 let mut cover_path = None;
 
                 if let (Some(data), Some(mime)) = (meta.cover_data, meta.cover_mime) {
-                    use std::collections::hash_map::DefaultHasher;
-                    use std::hash::{Hash, Hasher};
-                    let mut hasher = DefaultHasher::new();
-                    data.hash(&mut hasher);
-                    let hash = hasher.finish();
-
-                    let ext = if mime.contains("png") { "png" } else { "jpg" };
-                    let filename = format!("{:x}.{}", hash, ext);
-                    let full_path = covers_dir.join(&filename);
-
-                    if !full_path.exists() {
-                        let _ = std::fs::write(&full_path, data);
-                    }
-                    cover_path = Some(filename);
+                    cover_path = save_cover_art(&data, &mime, &covers_dir);
                 }
 
                 if schema::add_track(
@@ -226,18 +227,7 @@ fn import_single_file(file_path: &std::path::Path, state: &State<'_, DbState>, a
     if let Some(meta) = metadata::read_metadata(file_path) {
         let mut cover_path = None;
         if let (Some(data), Some(mime)) = (meta.cover_data, meta.cover_mime) {
-            use std::collections::hash_map::DefaultHasher;
-            use std::hash::{Hash, Hasher};
-            let mut hasher = DefaultHasher::new();
-            data.hash(&mut hasher);
-            let hash = hasher.finish();
-            let ext = if mime.contains("png") { "png" } else { "jpg" };
-            let filename = format!("{:x}.{}", hash, ext);
-            let full_path = covers_dir.join(&filename);
-            if !full_path.exists() {
-                let _ = std::fs::write(&full_path, data);
-            }
-            cover_path = Some(filename);
+            cover_path = save_cover_art(&data, &mime, &covers_dir);
         }
 
         schema::add_track(
