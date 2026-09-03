@@ -53,6 +53,10 @@ impl AudioSystem {
             let mut saved_position: Option<Duration> = None;
             let mut was_playing = false;
 
+            // Manual position tracking (rodio's get_pos doesn't reflect seeks)
+            let mut pos_base: Duration = Duration::ZERO;
+            let mut pos_timer: Option<Instant> = None;
+
             // Initialize audio
             match create_audio_output() {
                 Ok(o) => {
@@ -80,6 +84,8 @@ impl AudioSystem {
                                             saved_path = Some(path.clone());
                                             saved_position = None;
                                             was_playing = true;
+                                            pos_base = Duration::ZERO;
+                                            pos_timer = Some(Instant::now());
                                             println!("AudioSystem: Playing {}", path);
                                         }
                                         Err(e) => eprintln!("AudioSystem: Error decoding audio: {}", e),
@@ -91,6 +97,10 @@ impl AudioSystem {
                         AudioCommand::Pause => {
                             if let Some(ref o) = output {
                                 o.sink.pause();
+                                if let Some(t) = pos_timer {
+                                    pos_base += t.elapsed();
+                                }
+                                pos_timer = None;
                                 was_playing = false;
                             }
                         }
@@ -98,6 +108,7 @@ impl AudioSystem {
                             if let Some(ref o) = output {
                                 o.sink.play();
                                 was_playing = true;
+                                pos_timer = Some(Instant::now());
                             }
                         }
                         AudioCommand::SetVolume(vol) => {
@@ -109,6 +120,8 @@ impl AudioSystem {
                         AudioCommand::Seek(seconds) => {
                             if let Some(ref o) = output {
                                 let _ = o.sink.try_seek(Duration::from_secs_f64(seconds));
+                                pos_base = Duration::from_secs_f64(seconds);
+                                pos_timer = Some(Instant::now());
                             }
                         }
                     },
@@ -126,7 +139,7 @@ impl AudioSystem {
 
                                 // Save state before destroying
                                 if let Some(ref o) = output {
-                                    saved_position = Some(o.sink.get_pos());
+                                    saved_position = Some(get_current_pos(pos_base, pos_timer));
                                     was_playing = !o.sink.is_paused() && !o.sink.empty();
                                 }
                                 output = None;
@@ -149,8 +162,12 @@ impl AudioSystem {
                                                             let _ = o.sink.try_seek(pos);
                                                             if was_playing {
                                                                 o.sink.play();
+                                                                pos_base = pos;
+                                                                pos_timer = Some(Instant::now());
                                                             } else {
                                                                 o.sink.pause();
+                                                                pos_base = pos;
+                                                                pos_timer = None;
                                                             }
                                                             o.sink.set_volume(current_volume);
                                                             println!("AudioSystem: Restored playback after device switch");
@@ -173,10 +190,11 @@ impl AudioSystem {
                             if was_playing {
                                 if o.sink.empty() {
                                     was_playing = false;
+                                    pos_timer = None;
                                     println!("AudioSystem: Track finished");
                                     let _ = app_handle.emit("track-finished", ());
                                 } else {
-                                    let pos = o.sink.get_pos();
+                                    let pos = get_current_pos(pos_base, pos_timer);
                                     let _ = app_handle.emit("playback-progress", pos.as_secs_f64());
                                 }
                             }
@@ -208,5 +226,12 @@ impl AudioSystem {
 
     pub fn seek(&self, seconds: f64) {
         let _ = self.command_tx.send(AudioCommand::Seek(seconds));
+    }
+}
+
+fn get_current_pos(pos_base: Duration, pos_timer: Option<Instant>) -> Duration {
+    match pos_timer {
+        Some(t) => pos_base + t.elapsed(),
+        None => pos_base,
     }
 }
