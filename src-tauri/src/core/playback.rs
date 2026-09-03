@@ -1,4 +1,4 @@
-use rodio::{Decoder, OutputStream, Sink};
+use rodio::{Decoder, OutputStream, Sink, Source};
 use cpal::traits::{HostTrait, DeviceTrait};
 use std::fs::File;
 use std::io::BufReader;
@@ -12,7 +12,7 @@ pub enum AudioCommand {
     Pause,
     Resume,
     SetVolume(f32),
-    Seek(f64),
+    Seek(String, f64),
 }
 
 struct AudioOutput {
@@ -117,11 +117,43 @@ impl AudioSystem {
                                 o.sink.set_volume(vol);
                             }
                         }
-                        AudioCommand::Seek(seconds) => {
-                            if let Some(ref o) = output {
-                                let _ = o.sink.try_seek(Duration::from_secs_f64(seconds));
-                                pos_base = Duration::from_secs_f64(seconds);
+                        AudioCommand::Seek(path, seconds) => {
+                            saved_path = Some(path.clone());
+                            let was_playing_before = was_playing;
+                            let target = Duration::from_secs_f64(seconds);
+                            pos_base = target;
+                            if was_playing_before {
                                 pos_timer = Some(Instant::now());
+                            } else {
+                                pos_timer = None;
+                            }
+                            // Re-open the file and skip to the target position so the
+                            // audio actually jumps (rodio's sink.try_seek is unreliable).
+                            if let Some(ref o) = output {
+                                if !o.sink.empty() {
+                                    o.sink.stop();
+                                }
+                            }
+                            match File::open(&path) {
+                                Ok(file) => match Decoder::new(BufReader::new(file)) {
+                                    Ok(source) => {
+                                        // SkipDuration drops the leading audio up to the
+                                        // target, giving a reliable seek on any format.
+                                        let sought = source.skip_duration(target);
+                                        if let Some(ref o) = output {
+                                            o.sink.append(sought);
+                                            o.sink.set_volume(current_volume);
+                                            if was_playing_before {
+                                                o.sink.play();
+                                            } else {
+                                                o.sink.pause();
+                                            }
+                                        }
+                                        println!("AudioSystem: Seek to {:.2}s", seconds);
+                                    }
+                                    Err(e) => eprintln!("AudioSystem: Error decoding for seek: {}", e),
+                                },
+                                Err(e) => eprintln!("AudioSystem: Error opening for seek: {}", e),
                             }
                         }
                     },
@@ -224,8 +256,8 @@ impl AudioSystem {
         let _ = self.command_tx.send(AudioCommand::SetVolume(volume));
     }
 
-    pub fn seek(&self, seconds: f64) {
-        let _ = self.command_tx.send(AudioCommand::Seek(seconds));
+    pub fn seek(&self, path: String, seconds: f64) {
+        let _ = self.command_tx.send(AudioCommand::Seek(path, seconds));
     }
 }
 

@@ -45,7 +45,9 @@ window.addEventListener("DOMContentLoaded", () => {
     });
     progressBar.addEventListener("change", (e: Event) => {
       isScrubbing = false;
-      invoke("seek_track", { seconds: parseFloat((e.target as HTMLInputElement).value) });
+      const ct = getCurrentTrack();
+      if (!ct) return;
+      invoke("seek_track", { path: ct.path, seconds: parseFloat((e.target as HTMLInputElement).value) });
     });
   }
 

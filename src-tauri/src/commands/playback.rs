@@ -64,8 +64,8 @@ pub async fn resume_track(audio: State<'_, AudioSystem>) -> AppResult<()> {
 }
 
 #[tauri::command]
-pub async fn seek_track(seconds: f64, audio: State<'_, AudioSystem>) -> AppResult<()> {
-    audio.seek(seconds);
+pub async fn seek_track(path: String, seconds: f64, audio: State<'_, AudioSystem>) -> AppResult<()> {
+    audio.seek(path, seconds);
     Ok(())
 }
 
