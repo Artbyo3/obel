@@ -192,7 +192,7 @@ export async function loadAlbums() {
     card.className = "album-card";
     card.innerHTML = `
       <div class="album-cover">
-        ${album.cover ? `<img src="${convertFileSrc(album.cover)}" loading="lazy" />` : `<span class="album-cover-placeholder">[ ]</span>`}
+        ${album.cover ? `<img src="${convertFileSrc(album.cover)}" loading="lazy" decoding="async" />` : `<span class="album-cover-placeholder">[ ]</span>`}
       </div>
       <div class="album-info">
         <div class="album-title">${escapeHtml(album.name)}</div>

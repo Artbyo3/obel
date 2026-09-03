@@ -364,6 +364,9 @@ body {
   transition: transform 0.1s;
   width: 100%;
   max-width: 220px;
+  /* Skip rendering/layout of cards far outside the viewport for smooth scrolling */
+  content-visibility: auto;
+  contain-intrinsic-size: 220px 260px;
 }
 
 .album-card:hover {
