@@ -148,19 +148,40 @@ export async function loadAlbums() {
   container.innerHTML = "";
 
   const allTracks = getTracks();
-  const albums: Record<string, { name: string; artist: string; tracks: Track[]; cover: string | null }> = {};
-  allTracks.forEach(t => {
-    const key = `${t.album || "Unknown Album"}||${t.artist || "Unknown"}`;
-    if (!albums[key]) albums[key] = { name: t.album || "Unknown Album", artist: t.artist || "Unknown", tracks: [], cover: null };
-    albums[key].tracks.push(t);
-    if (!albums[key].cover && t.cover_art) albums[key].cover = t.cover_art;
-  });
+  // Group albums by title only, so compilation/soundtrack albums with multiple
+  // per-track artists (e.g. "Various Artists") collapse into a single album card
+  // instead of one card per artist.
+  const albumIndex: Record<string, { name: string; artist: string; tracks: Track[]; cover: string | null }> = {};
+  const albumKeyOf = (a?: string | null) => ((a || "Unknown Album").trim().toLowerCase());
 
-  const albumEntries = Object.values(albums);
+  for (const t of allTracks) {
+    const key = albumKeyOf(t.album);
+    if (!albumIndex[key]) {
+      albumIndex[key] = {
+        name: t.album || "Unknown Album",
+        artist: t.artist || "Unknown",
+        tracks: [],
+        cover: null,
+      };
+    }
+    albumIndex[key].tracks.push(t);
+    if (!albumIndex[key].cover && t.cover_art) albumIndex[key].cover = t.cover_art;
+  }
+
+  const albumEntries = Object.values(albumIndex);
   if (albumEntries.length === 0) {
     container.innerHTML = `<div class="text-center" style="padding:40px;">[ NO ALBUMS ]</div>`;
     return;
   }
+
+  // Recompute each album's displayed artist: join distinct artists, or
+  // "Various Artists" when a compilation has multiple different artists.
+  albumEntries.forEach(album => {
+    const artists = [...new Set(album.tracks.map(t => t.artist || "Unknown").filter(Boolean))];
+    album.artist = artists.length > 1
+      ? "Various Artists"
+      : (artists[0] || "Unknown");
+  });
 
   updateStatusBar("VIEW: ALBUMS", `${albumEntries.length} ALBUMS`);
 

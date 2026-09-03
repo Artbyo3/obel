@@ -64,25 +64,22 @@ window.addEventListener("DOMContentLoaded", () => {
       if (!ct?.album) return;
       await ensureTracksLoaded();
 
+      // Group albums by title only, mirroring loadAlbums() so compilations
+      // with multiple per-track artists resolve to a single album card.
       const albumsMap: Record<string, any> = {};
       getTracks().forEach(t => {
-        const key = `${(t.album || '').toString()}||${(t.artist || '').toString()}`;
-        if (!albumsMap[key]) albumsMap[key] = { name: t.album || 'Unknown Album', artist: t.artist || 'Unknown', tracks: [], cover: t.cover_art };
+        const key = (t.album || 'Unknown Album').trim().toLowerCase();
+        if (!albumsMap[key]) albumsMap[key] = { name: t.album || 'Unknown Album', artist: 'Unknown', tracks: [], cover: t.cover_art };
         albumsMap[key].tracks.push(t);
         if (!albumsMap[key].cover && t.cover_art) albumsMap[key].cover = t.cover_art;
       });
+      Object.values(albumsMap).forEach((album: any) => {
+        const artists = [...new Set(album.tracks.map((t: any) => t.artist || 'Unknown').filter(Boolean))];
+        album.artist = artists.length > 1 ? 'Various Artists' : (artists[0] || 'Unknown');
+      });
 
-      const lookupKey = `${ct.album}||${ct.artist}`;
-      let album = albumsMap[lookupKey];
-      if (!album) {
-        const lowerName = (ct.album || '').toString().toLowerCase();
-        for (const k in albumsMap) {
-          if (albumsMap[k].name?.toString().toLowerCase() === lowerName) {
-            album = albumsMap[k];
-            break;
-          }
-        }
-      }
+      const lookupKey = (ct.album || '').trim().toLowerCase();
+      const album = albumsMap[lookupKey];
       if (album) switchView('album-details', album);
     });
   }
