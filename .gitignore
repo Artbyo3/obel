@@ -41,3 +41,7 @@ dist
 dist-ssr
 out
 tmp
+
+# Mobile app icons (not used; this is a desktop app)
+src-tauri/icons/android/
+src-tauri/icons/ios/
