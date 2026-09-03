@@ -143,23 +143,33 @@ function renderVirtualTracks() {
   updateStatusBar("VIEW: TRACKS", `${filteredTracks.length} ITEMS${searchQuery ? ' (FILTERED)' : ''}`);
 }
 
-export async function loadAlbums() {
-  await ensureTracksLoaded();
-  const container = views.albums();
-  if (!container) return;
-  container.innerHTML = "";
+// Cache of the built album grid so switching back to the ALBUMS view doesn't
+// rebuild the entire DOM (and reload all covers) every time. Rebuilt only when
+// the underlying track set changes.
+interface AlbumEntry extends Album {
+  key: string;
+}
+let albumsFingerprint = "";
+let albumsEntries: AlbumEntry[] | null = null;
 
-  const allTracks = getTracks();
+function tracksFingerprint(ts: Track[]): string {
+  let h = 0;
+  for (const t of ts) h = ((h * 31) + (t.id || 0)) | 0;
+  return `${ts.length}:${h}`;
+}
+
+function buildAlbumEntries(allTracks: Track[]): AlbumEntry[] {
   // Group albums by title only, so compilation/soundtrack albums with multiple
   // per-track artists (e.g. "Various Artists") collapse into a single album card
   // instead of one card per artist.
-  const albumIndex: Record<string, { name: string; artist: string; tracks: Track[]; cover: string | null }> = {};
+  const albumIndex: Record<string, AlbumEntry> = {};
   const albumKeyOf = (a?: string | null) => ((a || "Unknown Album").trim().toLowerCase());
 
   for (const t of allTracks) {
     const key = albumKeyOf(t.album);
     if (!albumIndex[key]) {
       albumIndex[key] = {
+        key,
         name: t.album || "Unknown Album",
         artist: t.artist || "Unknown",
         tracks: [],
@@ -171,37 +181,63 @@ export async function loadAlbums() {
   }
 
   const albumEntries = Object.values(albumIndex);
-  if (albumEntries.length === 0) {
-    container.innerHTML = `<div class="no-albums">[ NO ALBUMS ]</div>`;
-    return;
-  }
 
   // Recompute each album's displayed artist: join distinct artists, or
   // "Various Artists" when a compilation has multiple different artists.
   albumEntries.forEach(album => {
     const artists = [...new Set(album.tracks.map(t => t.artist || "Unknown").filter(Boolean))];
-    album.artist = artists.length > 1
-      ? "Various Artists"
-      : (artists[0] || "Unknown");
+    album.artist = artists.length > 1 ? "Various Artists" : (artists[0] || "Unknown");
   });
+
+  return albumEntries;
+}
+
+export async function loadAlbums() {
+  await ensureTracksLoaded();
+  const container = views.albums();
+  if (!container) return;
+
+  const allTracks = getTracks();
+  const fp = tracksFingerprint(allTracks);
+
+  // Reuse cached entries if the library hasn't changed.
+  if (albumsEntries === null || albumsFingerprint !== fp) {
+    albumsFingerprint = fp;
+    albumsEntries = buildAlbumEntries(allTracks);
+  }
+
+  const albumEntries = albumsEntries;
 
   updateStatusBar("VIEW: ALBUMS", `${albumEntries.length} ALBUMS`);
 
-  albumEntries.forEach(album => {
-    const card = document.createElement("div");
-    card.className = "album-card";
-    card.innerHTML = `
-      <div class="album-cover">
-        ${album.cover ? `<img src="${convertFileSrc(album.cover)}" loading="lazy" decoding="async" />` : `<span class="album-cover-placeholder">[ ]</span>`}
-      </div>
-      <div class="album-info">
-        <div class="album-title">${escapeHtml(album.name)}</div>
-        <div class="album-artist">${escapeHtml(album.artist)}</div>
-      </div>
-    `;
-    card.onclick = () => switchView('album-details', album);
-    container.appendChild(card);
-  });
+  // Only rebuild the DOM when we haven't already built it for this fingerprint.
+  if (container.dataset.fp !== fp) {
+    container.innerHTML = "";
+
+    if (albumEntries.length === 0) {
+      container.innerHTML = `<div class="no-albums">[ NO ALBUMS ]</div>`;
+      return;
+    }
+
+    const frag = document.createDocumentFragment();
+    albumEntries.forEach(album => {
+      const card = document.createElement("div");
+      card.className = "album-card";
+      card.innerHTML = `
+        <div class="album-cover">
+          ${album.cover ? `<img src="${convertFileSrc(album.cover)}" loading="lazy" decoding="async" />` : `<span class="album-cover-placeholder">[ ]</span>`}
+        </div>
+        <div class="album-info">
+          <div class="album-title">${escapeHtml(album.name)}</div>
+          <div class="album-artist">${escapeHtml(album.artist)}</div>
+        </div>
+      `;
+      card.onclick = () => switchView('album-details', album);
+      frag.appendChild(card);
+    });
+    container.appendChild(frag);
+    container.dataset.fp = fp;
+  }
 }
 
 export function renderAlbumDetails(album: Album) {
