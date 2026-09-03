@@ -332,6 +332,10 @@ body {
   justify-self: start;
 }
 
+.format-tag-inline {
+  margin-left: 5px;
+}
+
 .track-item:hover {
   background-color: #1a1a1a;
   color: var(--accent-color);
@@ -441,9 +445,68 @@ body {
   margin-bottom: 20px;
 }
 
+.details-meta-info {
+  color: var(--subtext-color);
+  margin-bottom: 20px;
+  line-height: 1.6;
+}
+
 .action-bar {
   display: flex;
   gap: 10px;
+}
+
+/* Compact inline action buttons for detail views / panels */
+.tui-btn.action {
+  width: auto;
+  padding: 6px 16px;
+  margin: 0;
+  border: 1px solid var(--border-color);
+  color: var(--text-color);
+  text-align: center;
+}
+
+.tui-btn.action:hover {
+  border-color: var(--text-color);
+  background: var(--text-color);
+  color: var(--bg-color);
+}
+
+.tui-btn.danger {
+  color: #ff5555;
+  border-color: #ff5555;
+}
+
+.tui-btn.danger:hover {
+  background: #ff5555;
+  color: #000;
+}
+
+/* Detail cover placeholder glyph */
+.details-cover-placeholder {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  font-size: 3rem;
+  color: var(--border-color);
+}
+
+/* Album card & status placeholder */
+.album-cover-placeholder {
+  font-size: 2rem;
+  opacity: 0.3;
+}
+
+.no-albums {
+  padding: 40px;
+  text-align: center;
+  color: var(--subtext-color);
+}
+
+/* Track number column in detail tracklist */
+.track-idx {
+  color: var(--subtext-color);
 }
 
 /* Modals */
@@ -537,6 +600,26 @@ body {
   color: #000;
 }
 
+/* Library path list */
+.path-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  border-bottom: 1px dotted var(--border-color);
+  font-size: 0.85rem;
+}
+
+.del-btn {
+  color: #ff5555;
+  flex-shrink: 0;
+}
+
+.del-btn:hover {
+  text-decoration: underline;
+}
+
 .tui-btn-small {
   background: none;
   border: none;
@@ -574,6 +657,12 @@ body {
   background: rgba(0, 255, 0, 0.1);
 }
 
+.lyric-state {
+  padding: 20px;
+  text-align: center;
+  color: var(--subtext-color);
+}
+
 /* Search Overlay (Keyboard Activated) */
 .search-overlay {
   position: fixed;
@@ -609,6 +698,10 @@ body {
   flex-shrink: 0;
 }
 
+.sync-header .tui-header {
+  margin-bottom: 4px;
+}
+
 .sync-devices {
   display: flex;
   flex-direction: column;
@@ -621,6 +714,11 @@ body {
   padding: 24px 16px;
   text-align: center;
   color: var(--subtext-color);
+}
+
+.sync-empty-hint {
+  margin-top: 8px;
+  font-size: 0.78rem;
 }
 
 .sync-card {
@@ -644,6 +742,10 @@ body {
 
 .sync-card[role="button"] {
   cursor: pointer;
+}
+
+.sync-card[role="button"]:hover:not(.selected) {
+  border-color: var(--subtext-color);
 }
 
 .sync-card-info {
@@ -688,25 +790,6 @@ body {
   font-size: 0.78rem;
 }
 
-.sync-card .sync-btn {
-  width: auto;
-  padding: 8px 18px;
-  border: 1px solid var(--text-color);
-  color: var(--text-color);
-  text-align: center;
-  flex-shrink: 0;
-}
-
-.sync-card .sync-btn:hover:not(:disabled) {
-  background: var(--text-color);
-  color: var(--bg-color);
-}
-
-.sync-card .sync-btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
 /* Plan preview */
 .sync-preview {
   border: 1px solid var(--border-color);
@@ -715,6 +798,14 @@ body {
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+.sync-preview .tui-header {
+  margin-bottom: 4px;
+}
+
+.sync-preview-space {
+  margin-top: 6px;
 }
 
 .sync-preview-grid {
@@ -741,28 +832,19 @@ body {
 .sync-preview-actions {
   display: flex;
   gap: 10px;
-  margin-top: 8px;
+  margin-top: 10px;
 }
 
-.sync-preview-actions .sync-btn-ok {
-  width: auto;
-  padding: 8px 18px;
-  border: 1px solid var(--accent-color);
-  color: var(--accent-color);
-  text-align: center;
+/* Consistent disabled state for all app buttons */
+.tui-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
-.sync-preview-actions .sync-btn-ok:hover {
-  background: var(--accent-color);
-  color: #000;
-}
-
-.sync-preview-actions .sync-btn-cancel {
-  width: auto;
-  padding: 8px 14px;
-  border: 1px solid var(--border-color);
+.tui-btn:disabled:hover {
+  background: none;
   color: var(--subtext-color);
-  text-align: center;
+  border-color: var(--border-color);
 }
 
 /* Live progress */

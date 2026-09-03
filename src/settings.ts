@@ -22,10 +22,8 @@ export async function loadLibraryPaths() {
     list.innerHTML = "";
     paths.forEach(path => {
       const el = document.createElement("div");
-      el.style.display = "flex";
-      el.style.justifyContent = "space-between";
-      el.style.marginBottom = "5px";
-      el.innerHTML = `<span>${escapeHtml(path)}</span> <button class="tui-btn-small" style="color:red">[DEL]</button>`;
+      el.className = "path-item";
+      el.innerHTML = `<span>${escapeHtml(path)}</span> <button class="tui-btn-small del-btn">[DEL]</button>`;
       (el.querySelector("button") as HTMLElement).onclick = () => removePath(path);
       list.appendChild(el);
     });

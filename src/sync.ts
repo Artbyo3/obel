@@ -87,7 +87,7 @@ function renderDevices() {
     host.innerHTML = `
       <div class="sync-empty">
         No removable device connected.
-        <div style="margin-top:8px; font-size:0.78rem;">Plug in your Echo Mini (or any USB drive) and press <b>[ REFRESH ]</b>.</div>
+        <div class="sync-empty-hint">Plug in your Echo Mini (or any USB drive) and press <b>[ REFRESH ]</b>.</div>
       </div>`;
     return;
   }
@@ -130,17 +130,17 @@ function renderPreview() {
 
   host.classList.remove("hidden");
   host.innerHTML = `
-    <div class="tui-header" style="margin-bottom:4px;">SYNC PLAN -> (${escapeHtml(selected)})</div>
+    <div class="tui-header">SYNC PLAN -> (${escapeHtml(selected)})</div>
     <div class="sync-preview-grid">
       <div class="sync-preview-row"><span class="label">Will copy</span><span class="value">${preview.to_copy}</span></div>
       <div class="sync-preview-row"><span class="label">Already up to date</span><span class="value">${preview.up_to_date}</span></div>
       <div class="sync-preview-row"><span class="label">Total tracks</span><span class="value">${preview.total}</span></div>
       <div class="sync-preview-row"><span class="label">Estimated size</span><span class="value">${fmtBytes(preview.bytes_needed)}</span></div>
     </div>
-    <div class="${enough ? "sync-meta" : "sync-space-warning"}" style="margin-top:6px;">${escapeHtml(spaceLine)}</div>
+    <div class="${enough ? "sync-meta" : "sync-space-warning"} sync-preview-space">${escapeHtml(spaceLine)}</div>
     <div class="sync-preview-actions">
-      <button class="sync-btn-ok" id="sync-confirm-btn" ${!enough || previewing || syncing ? "disabled" : ""}>[ SYNC NOW ]</button>
-      <button class="sync-btn-cancel" id="sync-cancel-btn">[ CANCEL ]</button>
+      <button class="tui-btn success action" id="sync-confirm-btn" ${!enough || previewing || syncing ? "disabled" : ""}>[ SYNC NOW ]</button>
+      <button class="tui-btn action" id="sync-cancel-btn">[ CANCEL ]</button>
     </div>
   `;
 
@@ -168,7 +168,7 @@ async function runSync(letter: string) {
   // Show live area (progress starts at 0/0 until first event).
   const live = el("sync-live");
   if (live) live.classList.remove("hidden");
-  setLiveProgress(0, 1, "Preparing...", 0, 0);
+  setLiveProgress(0, 1, "Preparing...");
 
   try {
     const res = await invoke<{ copied: number; skipped: number; total: number }>("sync_to_device", {
@@ -179,22 +179,21 @@ async function runSync(letter: string) {
     finishLive(false, `Sync failed: ${decodeError(e)}`);
   } finally {
     syncing = false;
-    // Re-preview so the plan reflects the new state after syncing.
-    await previewDevice(letter);
+    // Refresh the plan preview so it reflects the new post-sync state, but
+    // don't wipe the completion message shown above.
+    await refreshPreviewOnly(letter);
     renderDevices();
   }
 }
 
-function setLiveProgress(done: number, total: number, title: string, copied: number, skipped: number) {
+function setLiveProgress(done: number, total: number, title: string) {
   const fill = el("sync-progress-fill") as HTMLElement | null;
   const count = el("sync-live-count");
   const track = el("sync-live-track");
-  const stats = el("sync-live-stats");
   const pct = total > 0 ? Math.min(100, Math.round((done / total) * 100)) : 0;
   if (fill) fill.style.width = `${pct}%`;
   if (count) count.textContent = `${done}/${total}`;
   if (track) track.textContent = title || "\u00A0";
-  if (stats) stats.textContent = `copied ${copied} · skipped ${skipped}`;
 }
 
 function finishLive(ok: boolean, message: string) {
@@ -213,14 +212,24 @@ async function previewDevice(letter: string) {
   clearStatus();
   renderDevices();
   renderPreview();
+  await fetchPreview(letter);
+  previewing = false;
+  renderPreview();
+}
+
+// Fetch the preview plan and show it, without touching the status message.
+// Used after a sync completes so the "Done" confirmation isn't cleared.
+async function refreshPreviewOnly(letter: string): Promise<void> {
+  await fetchPreview(letter);
+  renderPreview();
+}
+
+async function fetchPreview(letter: string) {
   try {
     preview = await invoke<Preview>("preview_sync", { driveLetter: letter });
   } catch (e) {
     selected = null;
     setStatus(`Could not read device: ${decodeError(e)}`, "error");
-  } finally {
-    previewing = false;
-    renderPreview();
   }
 }
 
@@ -264,15 +273,14 @@ export async function setupSync() {
       const live = el("sync-live");
       if (live) live.classList.remove("hidden");
       const total = Number(event.payload) || 1;
-      setLiveProgress(0, total, "Starting...", 0, 0);
+      setLiveProgress(0, total, "Starting...");
     })
   );
 
   unlisten.push(
     await listen<[number, number, string]>("sync-progress", (event) => {
       const [done, total, title] = event.payload;
-      // We don't track copied/skipped deltas here beyond current index; approximate.
-      setLiveProgress(done, total, title, done, 0);
+      setLiveProgress(done, total, title);
     })
   );
 

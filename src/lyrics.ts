@@ -41,18 +41,18 @@ export async function loadLyrics() {
 
   const ct = getCurrentTrack();
   if (!ct) {
-    lyricsView.innerHTML = "<div style='padding: 20px;'>[NO_TRACK]</div>";
+    lyricsView.innerHTML = "<div class='lyric-state'>[NO_TRACK]</div>";
     parsedLyrics = [];
     return;
   }
 
-  lyricsView.innerHTML = "<div style='padding: 20px;'>[LOADING...]</div>";
+  lyricsView.innerHTML = "<div class='lyric-state'>[LOADING...]</div>";
   try {
     const lyricsText = await invoke("get_lyrics", { path: ct.path }) as string;
     parsedLyrics = parseLRC(lyricsText);
     renderLyrics();
   } catch {
-    lyricsView.innerHTML = "<div style='padding: 20px;'>[NO_LYRICS]</div>";
+    lyricsView.innerHTML = "<div class='lyric-state'>[NO_LYRICS]</div>";
     parsedLyrics = [];
   }
 }

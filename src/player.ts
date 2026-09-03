@@ -104,7 +104,7 @@ export function updatePlayerUI() {
 
     if (titleEl) titleEl.textContent = currentTrack.title || "Untitled";
     if (artistEl) {
-      artistEl.innerHTML = `${escapeHtml(currentTrack.artist || "Unknown artist")} <span class="format-tag" style="margin-left:5px;">${getFormat(currentTrack.path)}</span>`;
+      artistEl.innerHTML = `${escapeHtml(currentTrack.artist || "Unknown artist")} <span class="format-tag format-tag-inline">${getFormat(currentTrack.path)}</span>`;
     }
 
     if (currentTrack.cover_art) {

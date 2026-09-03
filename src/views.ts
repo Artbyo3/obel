@@ -172,7 +172,7 @@ export async function loadAlbums() {
 
   const albumEntries = Object.values(albumIndex);
   if (albumEntries.length === 0) {
-    container.innerHTML = `<div class="text-center" style="padding:40px;">[ NO ALBUMS ]</div>`;
+    container.innerHTML = `<div class="no-albums">[ NO ALBUMS ]</div>`;
     return;
   }
 
@@ -192,7 +192,7 @@ export async function loadAlbums() {
     card.className = "album-card";
     card.innerHTML = `
       <div class="album-cover">
-        ${album.cover ? `<img src="${convertFileSrc(album.cover)}" loading="lazy" />` : `<span style="font-size:2rem; opacity:0.3;">[ ]</span>`}
+        ${album.cover ? `<img src="${convertFileSrc(album.cover)}" loading="lazy" />` : `<span class="album-cover-placeholder">[ ]</span>`}
       </div>
       <div class="album-info">
         <div class="album-title">${escapeHtml(album.name)}</div>
@@ -227,21 +227,21 @@ export function renderAlbumDetails(album: Album) {
   container.innerHTML = `
     <div class="details-header">
       <div class="details-cover">
-         ${album.cover ? `<img src="${convertFileSrc(album.cover)}" />` : `<div style="display:flex;justify-content:center;align-items:center;height:100%;font-size:3rem;color:#333;">▒</div>`}
+         ${album.cover ? `<img src="${convertFileSrc(album.cover)}" />` : `<div class="details-cover-placeholder">▒</div>`}
       </div>
       <div class="details-meta">
         <h2 class="details-title">${escapeHtml(album.name)}</h2>
         <h3 class="details-artist">${escapeHtml(album.artist)}</h3>
-        <div class="tui-text" style="color:#666; margin-bottom: 20px;">
+        <div class="details-meta-info">
            YEAR: ${albumYear || 'Unknown'} <br>
            TRACKS: ${album.tracks.length} <br>
            TOTAL TIME: ${formatDuration(totalDuration)}
         </div>
         <div class="action-bar">
-           <button id="ad-play" class="tui-btn success" style="width: auto; padding: 5px 15px;">[ PLAY ALBUM ]</button>
-           <button id="ad-edit" class="tui-btn" style="width: auto; padding: 5px 15px;">[ EDIT DATA ]</button>
-           <button id="ad-delete" class="tui-btn error" style="width: auto; padding: 5px 15px; color: #ff5555; border-color: #ff5555;">[ DELETE ]</button>
-           <button id="ad-back" class="tui-btn" style="width: auto; padding: 5px 15px;">[ &lt; BACK ]</button>
+           <button id="ad-play" class="tui-btn success action">[ PLAY ALBUM ]</button>
+           <button id="ad-edit" class="tui-btn action">[ EDIT DATA ]</button>
+           <button id="ad-delete" class="tui-btn danger action">[ DELETE ]</button>
+           <button id="ad-back" class="tui-btn action">[ &lt; BACK ]</button>
         </div>
       </div>
     </div>
@@ -261,7 +261,7 @@ export function renderAlbumDetails(album: Album) {
       const row = document.createElement("div");
       row.className = "track-item" + (playing ? " playing" : "");
       row.innerHTML = `
-         <span style="color:var(--subtext-color)">${playing ? ">>" : (i + 1).toString().padStart(2, '0') + "."}</span>
+         <span class="track-idx">${playing ? ">>" : (i + 1).toString().padStart(2, '0') + "."}</span>
          <span>${escapeHtml(t.title || "Untitled")}</span>
          <span>${escapeHtml(t.artist || "Unknown")}</span>
          <span>${formatDuration(t.duration || 0)}</span>
