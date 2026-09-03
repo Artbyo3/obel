@@ -23,4 +23,4 @@ export interface LyricLine {
   text: string;
 }
 
-export type ViewMode = 'tracks' | 'albums' | 'album-details';
+export type ViewMode = 'tracks' | 'albums' | 'album-details' | 'sync';

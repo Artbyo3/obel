@@ -21,6 +21,7 @@
         <button id="tracks-btn" class="tui-btn active">TRACKS</button>
         <button id="albums-btn" class="tui-btn">ALBUMS</button>
         <button id="settings-btn" class="tui-btn">SETTINGS</button>
+        <button id="sync-btn" class="tui-btn">SYNC</button>
       </nav>
 
       <!-- NOW PLAYING (Moved to Sidebar) -->
@@ -99,6 +100,16 @@
       <!-- VIEW: ALBUM DETAILS (Hidden by default) -->
       <div id="album-details-view" class="view-section hidden">
         <!-- Details injected here -->
+      </div>
+
+      <!-- VIEW: SYNC -->
+      <div id="sync-view" class="view-section hidden">
+        <div class="tui-header">[ DEVICE SYNC ]</div>
+        <div class="sub-text" style="margin: 8px 0;">Connect a Snowsky Echo Mini (or any removable USB drive) to auto-sync your library. Only changed tracks are copied, as <b>Artista/Album/&lt;track&gt; - &lt;title&gt;.ext</b>.</div>
+        <div id="sync-devices" class="tui-group" style="margin-top: 6px;">
+          <div class="sub-text">Scanning for device...</div>
+        </div>
+        <div id="sync-status" class="sub-text" style="margin: 10px 0; min-height: 1.2em;"></div>
       </div>
 
     </main>

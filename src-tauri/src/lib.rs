@@ -87,6 +87,8 @@ pub fn run() {
             commands::test_discord_rpc,
             commands::delete_album,
             commands::import_dropped_paths,
+            commands::get_sync_status,
+            commands::sync_to_device,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

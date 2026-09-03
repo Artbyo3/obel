@@ -5,12 +5,14 @@ import { switchView, loadTracks, renderAlbumDetails, closeEditModal, saveAlbumMe
 import { setupSearch } from "./search";
 import { setupSettings } from "./settings";
 import { setupDragDrop } from "./dragdrop";
+import { setupSync, startSyncPolling } from "./sync";
 import { toggleLyricsSidebar, updateLyricHighlight } from "./lyrics";
 import { getCurrentTrack, getCurrentView, getCurrentAlbumContext, ensureTracksLoaded, getTracks } from "./state";
 
 window.addEventListener("DOMContentLoaded", () => {
   document.getElementById("tracks-btn")?.addEventListener("click", () => switchView('tracks'));
   document.getElementById("albums-btn")?.addEventListener("click", () => switchView('albums'));
+  document.getElementById("sync-btn")?.addEventListener("click", () => switchView('sync'));
   document.getElementById("play-btn")?.addEventListener("click", togglePlay);
   document.getElementById("prev-btn")?.addEventListener("click", playPrev);
   document.getElementById("next-btn")?.addEventListener("click", playNext);
@@ -95,5 +97,7 @@ window.addEventListener("DOMContentLoaded", () => {
   setupSearch();
   setupSettings();
   setupDragDrop();
+  setupSync();
+  startSyncPolling();
   loadTracks();
 });

@@ -14,11 +14,13 @@ const views = {
   tracks: () => document.getElementById("track-list"),
   albums: () => document.getElementById("album-grid"),
   details: () => document.getElementById("album-details-view"),
+  sync: () => document.getElementById("sync-view"),
 };
 
 const navBtns = {
   tracks: () => document.getElementById("tracks-btn"),
   albums: () => document.getElementById("albums-btn"),
+  sync: () => document.getElementById("sync-btn"),
 };
 
 export function switchView(mode: ViewMode, data?: Album) {
@@ -27,6 +29,7 @@ export function switchView(mode: ViewMode, data?: Album) {
   document.querySelectorAll("nav button").forEach(btn => btn.classList.remove("active"));
   if (mode === 'tracks') navBtns.tracks()?.classList.add("active");
   if (mode === 'albums' || mode === 'album-details') navBtns.albums()?.classList.add("active");
+  if (mode === 'sync') navBtns.sync()?.classList.add("active");
 
   Object.values(views).forEach(el => el()?.classList.add("hidden"));
 
@@ -39,6 +42,9 @@ export function switchView(mode: ViewMode, data?: Album) {
   } else if (mode === 'album-details') {
     views.details()?.classList.remove("hidden");
     if (data) renderAlbumDetails(data);
+  } else if (mode === 'sync') {
+    views.sync()?.classList.remove("hidden");
+    updateStatusBar("VIEW: DEVICE SYNC", "");
   }
 }
 
