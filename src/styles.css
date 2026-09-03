@@ -585,3 +585,232 @@ body {
   max-width: 600px;
   box-shadow: 0 4px 12px rgba(0, 255, 0, 0.2);
 }
+
+/* ===== Sync Panel ===== */
+.sync-view {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.sync-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px dashed var(--border-color);
+}
+
+.sync-refresh-btn {
+  width: auto;
+  padding: 6px 14px;
+  border: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.sync-devices {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sync-empty,
+.sync-loading {
+  border: 1px dashed var(--border-color);
+  padding: 24px 16px;
+  text-align: center;
+  color: var(--subtext-color);
+}
+
+.sync-card {
+  border: 1px solid var(--border-color);
+  background: var(--panel-bg);
+  padding: 12px 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.sync-card.echo {
+  border-color: var(--accent-color);
+}
+
+.sync-card.selected {
+  outline: 1px solid var(--text-color);
+  background: #000;
+}
+
+.sync-card[role="button"] {
+  cursor: pointer;
+}
+
+.sync-card-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.sync-volume-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sync-letter {
+  color: var(--accent-color);
+  font-weight: bold;
+}
+
+.sync-label {
+  color: var(--text-color);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sync-badge {
+  font-size: 0.6rem;
+  padding: 1px 6px;
+  border: 1px solid var(--accent-color);
+  color: var(--accent-color);
+  flex-shrink: 0;
+}
+
+.sync-badge.sd {
+  border-color: var(--subtext-color);
+  color: var(--subtext-color);
+}
+
+.sync-meta {
+  margin-top: 4px;
+  color: var(--subtext-color);
+  font-size: 0.78rem;
+}
+
+.sync-card .sync-btn {
+  width: auto;
+  padding: 8px 18px;
+  border: 1px solid var(--text-color);
+  color: var(--text-color);
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.sync-card .sync-btn:hover:not(:disabled) {
+  background: var(--text-color);
+  color: var(--bg-color);
+}
+
+.sync-card .sync-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Plan preview */
+.sync-preview {
+  border: 1px solid var(--border-color);
+  background: var(--bg-color);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sync-preview-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 24px;
+}
+
+.sync-preview-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 0.85rem;
+}
+
+.sync-preview-row .label { color: var(--subtext-color); }
+.sync-preview-row .value { color: var(--text-color); font-weight: bold; }
+
+.sync-space-warning {
+  color: #ff5555;
+  font-size: 0.8rem;
+}
+
+.sync-preview-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.sync-preview-actions .sync-btn-ok {
+  width: auto;
+  padding: 8px 18px;
+  border: 1px solid var(--accent-color);
+  color: var(--accent-color);
+  text-align: center;
+}
+
+.sync-preview-actions .sync-btn-ok:hover {
+  background: var(--accent-color);
+  color: #000;
+}
+
+.sync-preview-actions .sync-btn-cancel {
+  width: auto;
+  padding: 8px 14px;
+  border: 1px solid var(--border-color);
+  color: var(--subtext-color);
+  text-align: center;
+}
+
+/* Live progress */
+.sync-live {
+  border: 1px solid var(--border-color);
+  background: var(--bg-color);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sync-live-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-weight: bold;
+}
+
+.sync-live-title { color: var(--accent-color); }
+.sync-live-count { color: var(--subtext-color); }
+
+.sync-progress {
+  height: 16px;
+  border: 1px solid var(--border-color);
+  background: #000;
+  overflow: hidden;
+}
+
+.sync-progress-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--accent-color);
+  transition: width 0.15s linear;
+}
+
+.sync-live-track {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Status message (errors / notices) */
+.sync-status {
+  padding: 10px 12px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-color);
+}
+
+.sync-status.error { border-color: #ff5555; color: #ff5555; }
+.sync-status.ok { border-color: var(--accent-color); color: var(--accent-color); }

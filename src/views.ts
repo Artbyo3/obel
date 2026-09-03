@@ -9,6 +9,7 @@ import {
 import { isCurrentTrack, playTrack, formatDuration, getFormat } from "./player";
 import { getIsPlaying } from "./state";
 import { escapeHtml } from "./utils";
+import { refreshSync } from "./sync";
 
 const views = {
   tracks: () => document.getElementById("track-list"),
@@ -45,6 +46,7 @@ export function switchView(mode: ViewMode, data?: Album) {
   } else if (mode === 'sync') {
     views.sync()?.classList.remove("hidden");
     updateStatusBar("VIEW: DEVICE SYNC", "");
+    void refreshSync();
   }
 }
 

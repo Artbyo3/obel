@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { escapeHtml } from "./utils";
 
 export interface DriveInfo {
@@ -10,9 +11,20 @@ export interface DriveInfo {
   echo_volume: string | null;
 }
 
+interface Preview {
+  total: number;
+  to_copy: number;
+  up_to_date: number;
+  bytes_needed: number;
+  free_bytes: number;
+}
+
 let devices: DriveInfo[] = [];
+let selected: string | null = null;
+let preview: Preview | null = null;
+let previewing = false;
 let syncing = false;
-let pollTimer: number | null = null;
+let unlisten: UnlistenFn[] = [];
 
 function fmtBytes(n: number): string {
   if (n <= 0) return "0 B";
@@ -22,87 +34,255 @@ function fmtBytes(n: number): string {
   return `${val.toFixed(i === 0 ? 0 : 1)} ${units[i]}`;
 }
 
-function statusEl(): HTMLElement | null {
-  return document.getElementById("sync-status");
+function volumeLabel(d: DriveInfo): string {
+  if (d.echo_volume === "sd") return "SD CARD";
+  if (d.echo_volume === "internal") return "INTERNAL";
+  if (d.is_echo_mini) return "ECHO MINI";
+  return "USB DRIVE";
 }
 
-function devicesEl(): HTMLElement | null {
-  return document.getElementById("sync-devices");
+function el(id: string): HTMLElement | null {
+  return document.getElementById(id);
 }
 
-function setStatus(msg: string) {
-  const el = statusEl();
-  if (el) el.textContent = msg;
+function devicesHost(): HTMLElement | null {
+  return el("sync-devices");
 }
 
-function render() {
-  const host = devicesEl();
+function setStatus(message: string, kind: "error" | "ok" | "info" = "info") {
+  const host = el("sync-status");
+  if (!host) return;
+  host.textContent = message;
+  host.className = `sync-status ${kind === "info" ? "" : kind}`;
+  host.classList.remove("hidden");
+}
+
+function clearStatus() {
+  const host = el("sync-status");
+  if (host) host.classList.add("hidden");
+}
+
+function decodeError(e: unknown): string {
+  if (typeof e === "string") return e;
+  if (e && typeof e === "object") {
+    const anyE = e as any;
+    const msg = anyE?.message || anyE?.error || String(e);
+    return msg;
+  }
+  return String(e);
+}
+
+function renderDevices() {
+  const host = devicesHost();
   if (!host) return;
 
+  const loading = el("sync-preview");
+  if (loading) loading.classList.add("hidden");
+
+  if (syncing) {
+    // Keep showing the current device card dimmed while syncing.
+  }
+
   if (devices.length === 0) {
-    host.innerHTML = `<div class="sub-text">No removable device detected. Connect your Echo Mini and wait a moment.</div>`;
+    host.innerHTML = `
+      <div class="sync-empty">
+        No removable device connected.
+        <div style="margin-top:8px; font-size:0.78rem;">Plug in your Echo Mini (or any USB drive) and press <b>[ REFRESH ]</b>.</div>
+      </div>`;
     return;
   }
 
   host.innerHTML = devices
-    .map(
-      (d) => `
-      <div class="tui-field" style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
-        <div style="flex:1;">
-          <span class="tui-text">${escapeHtml(d.letter)}</span>
-          <span class="sub-text" style="margin-left:8px;">${escapeHtml(d.label || "(no label)")}</span>
-          ${d.is_echo_mini ? `<span class="sub-text" style="color: var(--accent-color); margin-left:6px;">[ECHO MINI]</span>` : ""}
-          <div class="sub-text">${fmtBytes(d.free_bytes)} free / ${fmtBytes(d.total_bytes)} total</div>
-        </div>
-        <button class="tui-btn" data-sync="${escapeHtml(d.letter)}" ${syncing ? "disabled" : ""}>[ SYNC ]</button>
-      </div>`
-    )
+    .map((d) => {
+      const isSel = selected === d.letter;
+      const vol = volumeLabel(d);
+      const badge = d.is_echo_mini
+        ? `<span class="sync-badge ${d.echo_volume === "sd" ? "sd" : ""}">${escapeHtml(vol)}</span>`
+        : "";
+      return `
+        <div class="sync-card ${d.is_echo_mini ? "echo" : ""} ${isSel ? "selected" : ""}" data-letter="${escapeHtml(d.letter)}" role="button">
+          <div class="sync-card-info">
+            <div class="sync-volume-line">
+              <span class="sync-letter">(${escapeHtml(d.letter)})</span>
+              <span class="sync-label">${escapeHtml(d.label || "(no label)")}</span>
+              ${badge}
+            </div>
+            <div class="sync-meta">${fmtBytes(d.free_bytes)} free / ${fmtBytes(d.total_bytes)} total</div>
+          </div>
+        </div>`;
+    })
     .join("");
 }
 
-async function refreshSilently(): Promise<void> {
-  try {
-    devices = await invoke<DriveInfo[]>("get_sync_status");
-  } catch {
-    devices = [];
+function renderPreview() {
+  const host = el("sync-preview");
+  if (!host) return;
+
+  if (!selected || !preview) {
+    host.classList.add("hidden");
+    return;
   }
-  render();
-}
 
-export function setupSync() {
-  void refreshSilently();
+  const enough = preview.bytes_needed <= preview.free_bytes;
+  const spaceLine = enough
+    ? `Needs ${fmtBytes(preview.bytes_needed)} — fits in ${fmtBytes(preview.free_bytes)} free.`
+    : `Needs ${fmtBytes(preview.bytes_needed)} but only ${fmtBytes(preview.free_bytes)} free — NOT ENOUGH SPACE.`;
 
-  document.addEventListener("click", async (e) => {
-    const btn = (e.target as HTMLElement).closest("[data-sync]") as HTMLElement | null;
-    if (!btn) return;
-    const letter = btn.dataset.sync;
-    if (!letter || syncing) return;
-    syncing = true;
-    render();
-    setStatus(`Syncing to ${letter}...`);
-    try {
-      const res = await invoke<{ copied: number; skipped: number; total: number }>("sync_to_device", {
-        driveLetter: letter,
-      });
-      setStatus(`Done: copied ${res.copied}, skipped ${res.skipped} (${res.total} total).`);
-    } catch (err) {
-      setStatus(`Sync failed: ${String(err)}`);
-    } finally {
-      syncing = false;
-      render();
-    }
+  host.classList.remove("hidden");
+  host.innerHTML = `
+    <div class="tui-header" style="margin-bottom:4px;">SYNC PLAN -> (${escapeHtml(selected)})</div>
+    <div class="sync-preview-grid">
+      <div class="sync-preview-row"><span class="label">Will copy</span><span class="value">${preview.to_copy}</span></div>
+      <div class="sync-preview-row"><span class="label">Already up to date</span><span class="value">${preview.up_to_date}</span></div>
+      <div class="sync-preview-row"><span class="label">Total tracks</span><span class="value">${preview.total}</span></div>
+      <div class="sync-preview-row"><span class="label">Estimated size</span><span class="value">${fmtBytes(preview.bytes_needed)}</span></div>
+    </div>
+    <div class="${enough ? "sync-meta" : "sync-space-warning"}" style="margin-top:6px;">${escapeHtml(spaceLine)}</div>
+    <div class="sync-preview-actions">
+      <button class="sync-btn-ok" id="sync-confirm-btn" ${!enough || previewing || syncing ? "disabled" : ""}>[ SYNC NOW ]</button>
+      <button class="sync-btn-cancel" id="sync-cancel-btn">[ CANCEL ]</button>
+    </div>
+  `;
+
+  el("sync-cancel-btn")?.addEventListener("click", () => {
+    selected = null;
+    preview = null;
+    host.classList.add("hidden");
+    renderDevices();
+  });
+
+  const confirm = el("sync-confirm-btn");
+  confirm?.addEventListener("click", () => {
+    if (selected) void runSync(selected);
   });
 }
 
-// Lightweight periodic refresh to pick up hot-plug/unplug events while the app runs.
-export function startSyncPolling() {
-  if (pollTimer !== null) return;
-  pollTimer = window.setInterval(() => { void refreshSilently(); }, 5000);
+async function runSync(letter: string) {
+  syncing = true;
+  previewing = false;
+  selected = letter;
+  clearStatus();
+  renderDevices();
+  renderPreview();
+
+  // Show live area (progress starts at 0/0 until first event).
+  const live = el("sync-live");
+  if (live) live.classList.remove("hidden");
+  setLiveProgress(0, 1, "Preparing...", 0, 0);
+
+  try {
+    const res = await invoke<{ copied: number; skipped: number; total: number }>("sync_to_device", {
+      driveLetter: letter,
+    });
+    finishLive(true, `Done — copied ${res.copied}, skipped ${res.skipped}, ${res.total} total.`);
+  } catch (e) {
+    finishLive(false, `Sync failed: ${decodeError(e)}`);
+  } finally {
+    syncing = false;
+    // Re-preview so the plan reflects the new state after syncing.
+    await previewDevice(letter);
+    renderDevices();
+  }
 }
 
-export function stopSyncPolling() {
-  if (pollTimer !== null) {
-    window.clearInterval(pollTimer);
-    pollTimer = null;
+function setLiveProgress(done: number, total: number, title: string, copied: number, skipped: number) {
+  const fill = el("sync-progress-fill") as HTMLElement | null;
+  const count = el("sync-live-count");
+  const track = el("sync-live-track");
+  const stats = el("sync-live-stats");
+  const pct = total > 0 ? Math.min(100, Math.round((done / total) * 100)) : 0;
+  if (fill) fill.style.width = `${pct}%`;
+  if (count) count.textContent = `${done}/${total}`;
+  if (track) track.textContent = title || "\u00A0";
+  if (stats) stats.textContent = `copied ${copied} · skipped ${skipped}`;
+}
+
+function finishLive(ok: boolean, message: string) {
+  const live = el("sync-live");
+  if (live) live.classList.add("hidden");
+  const fill = el("sync-progress-fill") as HTMLElement | null;
+  if (fill) fill.style.width = "0%";
+  setStatus(message, ok ? "ok" : "error");
+}
+
+async function previewDevice(letter: string) {
+  if (previewing || syncing) return;
+  previewing = true;
+  selected = letter;
+  preview = null;
+  clearStatus();
+  renderDevices();
+  renderPreview();
+  try {
+    preview = await invoke<Preview>("preview_sync", { driveLetter: letter });
+  } catch (e) {
+    selected = null;
+    setStatus(`Could not read device: ${decodeError(e)}`, "error");
+  } finally {
+    previewing = false;
+    renderPreview();
   }
+}
+
+export async function refreshSync(): Promise<void> {
+  clearStatus();
+  const host = devicesHost();
+  if (host) host.innerHTML = `<div class="sync-loading">Detecting device...</div>`;
+  try {
+    devices = await invoke<DriveInfo[]>("get_sync_status");
+  } catch (e) {
+    devices = [];
+    setStatus(`Device scan failed: ${decodeError(e)}`, "error");
+  }
+  // Drop selection/preview if the device disappeared.
+  if (selected && !devices.some((d) => d.letter === selected)) {
+    selected = null;
+    preview = null;
+  }
+  renderDevices();
+  renderPreview();
+}
+
+export async function setupSync() {
+  // Global click delegation for device cards + refresh button.
+  document.addEventListener("click", (e) => {
+    const target = e.target as HTMLElement;
+    if (target.closest("#sync-refresh-btn")) {
+      void refreshSync();
+      return;
+    }
+    const card = target.closest<HTMLElement>("[data-letter]");
+    if (card && !syncing && !previewing) {
+      const letter = card.dataset.letter!;
+      if (selected === letter) return;
+      void previewDevice(letter);
+    }
+  });
+
+  unlisten.push(
+    await listen<number>("sync-started", (event) => {
+      const live = el("sync-live");
+      if (live) live.classList.remove("hidden");
+      const total = Number(event.payload) || 1;
+      setLiveProgress(0, total, "Starting...", 0, 0);
+    })
+  );
+
+  unlisten.push(
+    await listen<[number, number, string]>("sync-progress", (event) => {
+      const [done, total, title] = event.payload;
+      // We don't track copied/skipped deltas here beyond current index; approximate.
+      setLiveProgress(done, total, title, done, 0);
+    })
+  );
+
+  unlisten.push(
+    await listen<[number, number]>("sync-finished", (event) => {
+      const [copied, skipped] = event.payload;
+      const total = copied + skipped;
+      finishLive(true, `Done — copied ${copied}, skipped ${skipped}, ${total} total.`);
+    })
+  );
+
+  await refreshSync();
 }

@@ -103,13 +103,34 @@
       </div>
 
       <!-- VIEW: SYNC -->
-      <div id="sync-view" class="view-section hidden">
-        <div class="tui-header">[ DEVICE SYNC ]</div>
-        <div class="sub-text" style="margin: 8px 0;">Connect a Snowsky Echo Mini (or any removable USB drive) to auto-sync your library. Only changed tracks are copied, as <b>Artista/Album/&lt;track&gt; - &lt;title&gt;.ext</b>.</div>
-        <div id="sync-devices" class="tui-group" style="margin-top: 6px;">
-          <div class="sub-text">Scanning for device...</div>
+      <div id="sync-view" class="view-section sync-view hidden">
+        <div class="sync-header">
+          <div>
+            <div class="tui-header" style="margin-bottom:4px;">[ DEVICE SYNC ]</div>
+            <div class="sub-text">Copy your library to an Echo Mini. Already-synced tracks are skipped — nothing is ever deleted.</div>
+          </div>
+          <button id="sync-refresh-btn" class="tui-btn sync-refresh-btn">[ REFRESH ]</button>
         </div>
-        <div id="sync-status" class="sub-text" style="margin: 10px 0; min-height: 1.2em;"></div>
+
+        <div id="sync-devices" class="sync-devices">
+          <!-- Device cards / states rendered here -->
+        </div>
+
+        <div id="sync-preview" class="sync-preview hidden">
+          <!-- Sync plan preview rendered here -->
+        </div>
+
+        <div id="sync-live" class="sync-live hidden">
+          <div class="sync-live-head">
+            <span class="sync-live-title">SYNCING...</span>
+            <span class="sync-live-count" id="sync-live-count">0/0</span>
+          </div>
+          <div class="sync-progress"><div class="sync-progress-fill" id="sync-progress-fill"></div></div>
+          <div class="sync-live-track sub-text" id="sync-live-track">&nbsp;</div>
+          <div class="sub-text" id="sync-live-stats"></div>
+        </div>
+
+        <div id="sync-status" class="sync-status sub-text hidden"></div>
       </div>
 
     </main>

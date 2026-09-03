@@ -88,6 +88,7 @@ pub fn run() {
             commands::delete_album,
             commands::import_dropped_paths,
             commands::get_sync_status,
+            commands::preview_sync,
             commands::sync_to_device,
         ])
         .run(tauri::generate_context!())

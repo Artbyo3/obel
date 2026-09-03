@@ -5,7 +5,7 @@ import { switchView, loadTracks, renderAlbumDetails, closeEditModal, saveAlbumMe
 import { setupSearch } from "./search";
 import { setupSettings } from "./settings";
 import { setupDragDrop } from "./dragdrop";
-import { setupSync, startSyncPolling } from "./sync";
+import { setupSync } from "./sync";
 import { toggleLyricsSidebar, updateLyricHighlight } from "./lyrics";
 import { getCurrentTrack, getCurrentView, getCurrentAlbumContext, ensureTracksLoaded, getTracks } from "./state";
 
@@ -95,6 +95,5 @@ window.addEventListener("DOMContentLoaded", () => {
   setupSettings();
   setupDragDrop();
   setupSync();
-  startSyncPolling();
   loadTracks();
 });

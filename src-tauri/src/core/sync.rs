@@ -250,9 +250,41 @@ pub fn build_sync_plan(tracks: Vec<crate::db::schema::Track>) -> Vec<SyncTrack> 
     plan
 }
 
-/// Estimate free space required to sync remaining tracks.
-pub fn required_space(plan: &[SyncTrack]) -> u64 {
-    plan.iter().map(|t| t.size).sum()
+/// Summary of a sync plan without performing any copy.
+pub struct SyncPreview {
+    pub total: usize,
+    pub to_copy: usize,
+    pub up_to_date: usize,
+    pub bytes_needed: u64,
+    pub free_bytes: u64,
+}
+
+/// Read-only analysis of what a sync to `drive` would do: how many tracks need
+/// copying, how many are already up to date (same size on device), and the total
+/// bytes that would be written. Does not modify the device.
+pub fn preview_sync(plan: &[SyncTrack], drive: &DriveInfo) -> SyncPreview {
+    let mut to_copy = 0;
+    let mut up_to_date = 0;
+    let mut bytes_needed: u64 = 0;
+
+    for track in plan {
+        let dest = device_path(drive, &track.artist, &track.album, track.track_num, &track.title, &track.ext);
+        let same_size = std::fs::metadata(&dest).map(|m| m.len() == track.size).unwrap_or(false);
+        if same_size {
+            up_to_date += 1;
+        } else {
+            to_copy += 1;
+            bytes_needed += track.size;
+        }
+    }
+
+    SyncPreview {
+        total: plan.len(),
+        to_copy,
+        up_to_date,
+        bytes_needed,
+        free_bytes: drive.free_bytes,
+    }
 }
 
 /// Execute the sync: copy only tracks that are new or changed on the device.
