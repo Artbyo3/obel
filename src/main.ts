@@ -34,24 +34,30 @@ window.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  let isScrubbing = false;
+
   const progressBar = document.getElementById("progress-bar") as HTMLInputElement;
   if (progressBar) {
-    progressBar.addEventListener("change", (e: Event) => {
-      invoke("seek_track", { seconds: parseFloat((e.target as HTMLInputElement).value) });
-    });
     progressBar.addEventListener("input", (e: Event) => {
+      isScrubbing = true;
       const currTimeEl = document.getElementById("curr-time");
       if (currTimeEl) currTimeEl.textContent = formatDuration(parseFloat((e.target as HTMLInputElement).value));
+    });
+    progressBar.addEventListener("change", (e: Event) => {
+      isScrubbing = false;
+      invoke("seek_track", { seconds: parseFloat((e.target as HTMLInputElement).value) });
     });
   }
 
   listen("track-finished", () => playNext());
   listen("playback-progress", (event: any) => {
     const elapsed = event.payload as number;
-    const bar = document.getElementById("progress-bar") as HTMLInputElement;
-    const currTimeEl = document.getElementById("curr-time");
-    if (bar) bar.value = elapsed.toString();
-    if (currTimeEl) currTimeEl.textContent = formatDuration(elapsed);
+    if (!isScrubbing) {
+      const bar = document.getElementById("progress-bar") as HTMLInputElement;
+      const currTimeEl = document.getElementById("curr-time");
+      if (bar) bar.value = elapsed.toString();
+      if (currTimeEl) currTimeEl.textContent = formatDuration(elapsed);
+    }
     updateLyricHighlight(elapsed);
   });
 
