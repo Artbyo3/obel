@@ -148,8 +148,6 @@
         <div class="settings-nav">
           <button class="settings-tab tui-btn active" data-section="library">LIBRARY</button>
           <button class="settings-tab tui-btn" data-section="integrations">INTEGRATIONS</button>
-          <button class="settings-tab tui-btn" data-section="playback">PLAYBACK</button>
-          <button class="settings-tab tui-btn" data-section="appearance">APPEARANCE</button>
         </div>
 
         <div class="settings-content">
@@ -175,10 +173,6 @@
               <span class="tui-text">DISCORD RICH PRESENCE</span>
               <input type="checkbox" id="discord-toggle" checked />
             </div>
-            <div class="tui-field" style="display:flex; justify-content:space-between; align-items:center;">
-              <span class="tui-text">LYRICS SUPPORT</span>
-              <input type="checkbox" id="lyrics-toggle" checked />
-            </div>
             <div class="tui-field">
               <label>YOUTUBE MUSIC URL</label>
               <input id="youtube-url-input" class="tui-input" type="text" placeholder="https://youtu.be/..." />
@@ -191,31 +185,6 @@
               <button id="youtube-download-btn" class="tui-btn full-width">[ DOWNLOAD MP3 ]</button>
             </div>
             <div id="youtube-download-status" class="sub-text" style="margin-top: 10px; min-height: 1.2em;">Ready to download.</div>
-          </div>
-
-          <div class="settings-section hidden" id="settings-playback">
-            <div class="tui-field">
-              <label>DEFAULT VOLUME</label>
-              <input type="range" id="default-volume" min="0" max="100" value="100" class="tui-slider" />
-            </div>
-            <div class="tui-field">
-              <label>GAPLESS PLAYBACK</label>
-              <input type="checkbox" id="gapless-toggle" />
-            </div>
-          </div>
-
-          <div class="settings-section hidden" id="settings-appearance">
-            <div class="tui-field">
-              <label>THEME</label>
-              <select id="theme-select" class="tui-input">
-                <option value="dark">Dark</option>
-                <option value="light">Light (placeholder)</option>
-              </select>
-            </div>
-            <div class="tui-field">
-              <label>UI SCALE</label>
-              <input type="range" id="ui-scale" min="80" max="140" value="100" class="tui-slider" />
-            </div>
           </div>
         </div>
       </div>

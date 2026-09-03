@@ -1,4 +1,4 @@
-use rodio::{Decoder, OutputStream, OutputStreamHandle, Sink};
+use rodio::{Decoder, OutputStream, Sink};
 use cpal::traits::{HostTrait, DeviceTrait};
 use std::fs::File;
 use std::io::BufReader;
@@ -11,14 +11,12 @@ pub enum AudioCommand {
     Play(String),
     Pause,
     Resume,
-    Stop,
     SetVolume(f32),
     Seek(f64),
 }
 
 struct AudioOutput {
     _stream: OutputStream,
-    handle: OutputStreamHandle,
     sink: Sink,
 }
 
@@ -37,7 +35,7 @@ fn create_audio_output() -> Result<AudioOutput, String> {
         .map_err(|e| format!("Failed to open audio output: {}", e))?;
     let sink = Sink::try_new(&handle)
         .map_err(|e| format!("Failed to create audio sink: {}", e))?;
-    Ok(AudioOutput { _stream: stream, handle, sink })
+    Ok(AudioOutput { _stream: stream, sink })
 }
 
 impl AudioSystem {
@@ -101,14 +99,6 @@ impl AudioSystem {
                                 o.sink.play();
                                 was_playing = true;
                             }
-                        }
-                        AudioCommand::Stop => {
-                            if let Some(ref o) = output {
-                                o.sink.stop();
-                            }
-                            saved_path = None;
-                            saved_position = None;
-                            was_playing = false;
                         }
                         AudioCommand::SetVolume(vol) => {
                             current_volume = vol;
@@ -210,10 +200,6 @@ impl AudioSystem {
 
     pub fn resume(&self) {
         let _ = self.command_tx.send(AudioCommand::Resume);
-    }
-
-    pub fn stop(&self) {
-        let _ = self.command_tx.send(AudioCommand::Stop);
     }
 
     pub fn set_volume(&self, volume: f32) {

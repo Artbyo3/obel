@@ -2,7 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { escapeHtml } from "./utils";
 
-export interface DriveInfo {
+interface DriveInfo {
   letter: string;
   label: string;
   total_bytes: number;

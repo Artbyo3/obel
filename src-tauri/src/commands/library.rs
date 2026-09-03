@@ -100,6 +100,7 @@ pub async fn scan_library(state: State<'_, DbState>, app_handle: tauri::AppHandl
         }
     }
 
+    println!("Scan complete: +{} added, -{} removed", added_count, removed_count);
     Ok(added_count)
 }
 

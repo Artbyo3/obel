@@ -33,9 +33,7 @@ export function toggleLyricsSidebar() {
   }
 }
 
-export function getLyricsVisible() { return lyricsVisible; }
-
-export async function loadLyrics() {
+async function loadLyrics() {
   const lyricsView = document.getElementById("lyrics-sidebar-view");
   if (!lyricsView) return;
 

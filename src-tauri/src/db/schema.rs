@@ -166,24 +166,3 @@ pub fn delete_album(conn: &Connection, name: &str) -> Result<()> {
     conn.execute("DELETE FROM tracks WHERE album = ?1", params![name])?;
     Ok(())
 }
-
-pub fn get_tracks_by_album(conn: &Connection, album: &str) -> Result<Vec<Track>> {
-    let mut stmt = conn.prepare(
-        "SELECT id, path, title, artist, album, genre, year, duration, cover_art, last_modified FROM tracks WHERE album = ?1"
-    )?;
-    let track_iter = stmt.query_map(params![album], |row| {
-        Ok(Track {
-            id: row.get(0)?,
-            path: row.get(1)?,
-            title: row.get(2)?,
-            artist: row.get(3)?,
-            album: row.get(4)?,
-            genre: row.get(5)?,
-            year: row.get(6)?,
-            duration: row.get(7)?,
-            cover_art: row.get(8)?,
-            last_modified: row.get(9)?,
-        })
-    })?;
-    track_iter.collect()
-}

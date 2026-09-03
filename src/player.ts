@@ -89,7 +89,7 @@ export async function togglePlay() {
   onViewUpdate?.();
 }
 
-export function updatePlayerUI() {
+function updatePlayerUI() {
   const isPlaying = getIsPlaying();
   const currentTrack = getCurrentTrack();
 

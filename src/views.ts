@@ -50,7 +50,7 @@ export function switchView(mode: ViewMode, data?: Album) {
   }
 }
 
-export function updateStatusBar(viewLabel: string, statsLabel: string) {
+function updateStatusBar(viewLabel: string, statsLabel: string) {
   const lbl = document.getElementById("current-view-label");
   const stats = document.getElementById("library-stats");
   if (lbl) lbl.innerText = viewLabel;
@@ -310,7 +310,7 @@ export function renderAlbumDetails(album: Album) {
   container.scrollTop = scrollTop;
 }
 
-export async function deleteAlbum(album: Album) {
+async function deleteAlbum(album: Album) {
   if (!confirm(`DELETE ALBUM: "${album.name}"?\nThis will remove it from the library database.`)) return;
   try {
     await invoke("delete_album", { albumName: album.name });

@@ -14,7 +14,7 @@ export function setupSettings() {
   setupSettingsTabs();
 }
 
-export async function loadLibraryPaths() {
+async function loadLibraryPaths() {
   try {
     const paths = await invoke("get_library_paths") as string[];
     const list = document.getElementById("path-list");
